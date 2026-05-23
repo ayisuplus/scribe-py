@@ -159,3 +159,51 @@ def test_theme_summary_confirm_retry():
         with unittest.mock.patch.object(interviewer, 'interview', return_value=new_theme):
             result = theme.confirm(interviewer)
     assert result.genre == "都市"
+
+
+def test_council_wizard_build_topic():
+    from scribe.council.wizard import CouncilWizard, ThemeSummary, WritingScope
+    from unittest.mock import MagicMock
+
+    theme = ThemeSummary(
+        genre="仙侠", emotion="虐心", protagonist="魔尊",
+        desire="自由", conflict="人与命运", setting="三界",
+        effect="让读者哭", scene="大战后独坐山巅",
+    )
+    scope = WritingScope(mode="chapter", target="第三章", description="生成第三章")
+    book = MagicMock()
+    book.name = "测试书籍"
+
+    wizard = CouncilWizard.__new__(CouncilWizard)
+    topic = wizard._build_topic(theme, scope, book)
+
+    assert "测试书籍" in topic
+    assert "仙侠" in topic
+    assert "魔尊" in topic
+    assert "第三章" in topic
+    assert "chapter" in topic
+
+
+def test_council_wizard_select_writers_default():
+    from scribe.council.wizard import CouncilWizard
+    import unittest.mock
+
+    wizard = CouncilWizard.__new__(CouncilWizard)
+    recommended = ["jiulufeixiang", "priest"]
+
+    with unittest.mock.patch('builtins.input', return_value=''):
+        result = wizard._select_writers(recommended)
+    assert result == recommended
+
+
+def test_council_wizard_select_writers_custom():
+    from scribe.council.wizard import CouncilWizard
+    import unittest.mock
+
+    wizard = CouncilWizard.__new__(CouncilWizard)
+    recommended = ["jiulufeixiang", "priest"]
+
+    with unittest.mock.patch('builtins.input', return_value='4,5'):
+        result = wizard._select_writers(recommended)
+    assert "san-san" in result
+    assert "liu-cui-hu" in result

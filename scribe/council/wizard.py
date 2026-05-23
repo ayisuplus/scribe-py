@@ -176,3 +176,94 @@ class ThemeInterviewer:
         """自由输入交互"""
         print(f"\n🎯 {question}")
         return input("  > ").strip()
+
+
+class CouncilWizard:
+    """向导流程 — 选书后自动运行"""
+
+    def __init__(self, llm: LlmDriver, bookshelf: Bookshelf):
+        self._llm = llm
+        self._bookshelf = bookshelf
+        self._router = WriterRouter()
+        self._interviewer = ThemeInterviewer()
+        self._scope_parser = ScopeParser()
+
+    async def run(self, book: Book) -> str:
+        """完整向导流程，返回主编最终方案"""
+        # Step 1: 主题问答
+        theme = await self._interviewer.interview()
+        theme.confirm(self._interviewer)
+
+        # Step 2: 选作家
+        recommended = self._router.recommend(theme.summary)
+        writer_ids = self._select_writers(recommended)
+
+        # Step 3: 输入范围
+        scope_text = input("\n📐 你想写什么？（大纲/第X章/整本）: ").strip()
+        scope = self._scope_parser.parse(scope_text)
+        print(f"  范围：{scope.description}")
+
+        # Step 4: 初始化Council
+        config = CouncilConfig(max_rounds=2)
+        council = CouncilOrchestrator(self._llm, config)
+
+        for wid in writer_ids:
+            persona_path = Path(f"writers/{wid}-perspective")
+            council.register_writer(wid, persona_path)
+
+        # Step 5: 构建主题prompt
+        topic = self._build_topic(theme, scope, book)
+
+        # Step 6: 执行辩论+写作
+        print("\n📝 作家团讨论中...\n")
+        result = await council.run(topic=topic, writer_ids=writer_ids)
+
+        # Step 7: 保存结果
+        self._save_result(book, result, scope)
+
+        return result
+
+    def _select_writers(self, recommended: list[str]) -> list[str]:
+        """显示推荐，用户可修改"""
+        print(f"\n✍️ 推荐作家团：")
+        for i, wid in enumerate(recommended, 1):
+            print(f"  {i}. {wid}")
+
+        print(f"\n可用作家：")
+        all_writers = list(WriterRouter.WRITER_GENRES.keys())
+        for i, wid in enumerate(all_writers, 1):
+            print(f"  {i}. {wid}")
+
+        choice = input("\n直接回车使用推荐，或输入作家编号（逗号分隔）: ").strip()
+        if not choice:
+            return recommended
+
+        # 解析用户选择
+        indices = [int(x.strip()) - 1 for x in choice.split(",")]
+        return [all_writers[i] for i in indices if 0 <= i < len(all_writers)]
+
+    def _build_topic(self, theme: ThemeSummary, scope: WritingScope, book: Book) -> str:
+        """构建给CouncilOrchestrator的topic"""
+        return f"""书籍：{book.name}
+类型：{theme.genre}
+情绪：{theme.emotion}
+主角：{theme.protagonist}
+目标：{theme.desire}
+冲突：{theme.conflict}
+世界观：{theme.setting}
+效果：{theme.effect}
+场景：{theme.scene or '无'}
+
+写作任务：{scope.description}
+写作模式：{scope.mode}
+目标范围：{scope.target or '无特定目标'}
+"""
+
+    def _save_result(self, book: Book, result: str, scope: WritingScope) -> None:
+        """保存结果到书的数据目录"""
+        output_dir = self._bookshelf.get_book_data_dir(book.name) / "council"
+        output_dir.mkdir(exist_ok=True)
+
+        filename = f"{scope.mode}_{scope.target or 'output'}.md"
+        (output_dir / filename).write_text(result, encoding="utf-8")
+        print(f"\n💾 已保存到: {output_dir / filename}")

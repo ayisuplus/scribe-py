@@ -5,6 +5,13 @@ from scribe.council.router import WriterRouter
 from scribe.council.writer_agent import WriterAgent, load_writer_persona
 from scribe.council.editor import EditorAgent
 from scribe.council.council import CouncilOrchestrator, CouncilConfig
+from scribe.council.wizard import (
+    ThemeInterviewer,
+    ScopeParser,
+    ThemeSummary,
+    WritingScope,
+    CouncilWizard,
+)
 
 __all__ = [
     "WriterOpinion",
@@ -15,4 +22,9 @@ __all__ = [
     "EditorAgent",
     "CouncilOrchestrator",
     "CouncilConfig",
+    "ThemeInterviewer",
+    "ScopeParser",
+    "ThemeSummary",
+    "WritingScope",
+    "CouncilWizard",
 ]
