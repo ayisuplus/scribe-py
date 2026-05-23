@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scribe"
+version = "0.2.0"
+description = "Python port of Scribe: a writing agent framework with multi-layer memory"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Scribe Team", email = "team@example.com"}
+]
+keywords = ["writing", "agent", "memory", "ai", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "toml>=0.10.2",
+    "pydantic>=2.0.0",
+    "aiofiles>=23.0.0",
+    "httpx>=0.25.0",
+    "regex>=2023.0.0",
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "prompt_toolkit>=3.0.0",
+    "mempalace>=3.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/scribe"
+Repository = "https://github.com/example/scribe"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scribe*"]
+
+[project.scripts]
+scribe = "scribe.cli.main:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
