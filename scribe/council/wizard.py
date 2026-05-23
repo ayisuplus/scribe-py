@@ -67,3 +67,39 @@ class WritingScope:
     mode: str           # "outline" | "chapter" | "volume" | "full"
     target: str | None  # e.g. "第3章", "卷二", None
     description: str    # 人类可读描述
+
+
+class ScopeParser:
+    """解析用户的自由输入为写作范围"""
+
+    def parse(self, user_input: str) -> WritingScope:
+        """解析用户输入"""
+        text = user_input.strip()
+
+        # 大纲
+        if any(k in text for k in ["大纲", "outline", "提纲"]):
+            return WritingScope(mode="outline", target=None, description="生成大纲")
+
+        # 整本
+        if any(k in text for k in ["整本", "全书", "全部", "整书"]):
+            return WritingScope(mode="full", target=None, description="生成整本书")
+
+        # 范围匹配："从第3章到第7章"（必须在章节匹配之前）
+        range_match = re.search(r'从.+到', text)
+        if range_match:
+            return WritingScope(mode="chapter", target=text, description=f"生成{text}")
+
+        # 章节匹配："第3章", "第三章"
+        chapter_match = re.search(r'第(\d+|[一二三四五六七八九十百]+)章', text)
+        if chapter_match:
+            target = chapter_match.group(0)
+            return WritingScope(mode="chapter", target=target, description=f"生成{target}")
+
+        # 卷匹配："卷二", "第二卷"
+        volume_match = re.search(r'(第?(\d+|[一二三四五六七八九十百]+)卷|卷[一二三四五六七八九十百\d]+)', text)
+        if volume_match:
+            target = volume_match.group(0)
+            return WritingScope(mode="volume", target=target, description=f"生成{target}")
+
+        # 默认：大纲
+        return WritingScope(mode="outline", target=None, description="生成大纲")

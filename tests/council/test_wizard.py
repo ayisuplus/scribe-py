@@ -1,5 +1,5 @@
 import pytest
-from scribe.council.wizard import ThemeSummary, WritingScope
+from scribe.council.wizard import ThemeSummary, WritingScope, ScopeParser
 
 
 def test_theme_summary_from_answers():
@@ -51,3 +51,51 @@ def test_writing_scope_chapter():
     scope = WritingScope(mode="chapter", target="第三章", description="生成第三章")
     assert scope.mode == "chapter"
     assert scope.target == "第三章"
+
+
+def test_scope_parser_outline():
+    parser = ScopeParser()
+    scope = parser.parse("写大纲")
+    assert scope.mode == "outline"
+    assert scope.target is None
+
+
+def test_scope_parser_full():
+    parser = ScopeParser()
+    scope = parser.parse("整本书")
+    assert scope.mode == "full"
+
+
+def test_scope_parser_chapter_cn():
+    parser = ScopeParser()
+    scope = parser.parse("第3章")
+    assert scope.mode == "chapter"
+    assert scope.target == "第3章"
+
+
+def test_scope_parser_chapter_cn_num():
+    parser = ScopeParser()
+    scope = parser.parse("第三章")
+    assert scope.mode == "chapter"
+    assert scope.target == "第三章"
+
+
+def test_scope_parser_volume():
+    parser = ScopeParser()
+    scope = parser.parse("卷二")
+    assert scope.mode == "volume"
+    assert scope.target == "卷二"
+
+
+def test_scope_parser_range():
+    parser = ScopeParser()
+    scope = parser.parse("从第3章到第7章")
+    assert scope.mode == "chapter"
+    assert "第3章" in scope.target
+    assert "第7章" in scope.target
+
+
+def test_scope_parser_default():
+    parser = ScopeParser()
+    scope = parser.parse("随便写写")
+    assert scope.mode == "outline"
