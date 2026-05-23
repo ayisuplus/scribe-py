@@ -125,3 +125,37 @@ def test_theme_interviewer_ask_text():
     with unittest.mock.patch('builtins.input', return_value='测试回答'):
         result = interviewer._ask_text("测试问题?")
     assert result == "测试回答"
+
+
+def test_theme_summary_confirm_accept():
+    from scribe.council.wizard import ThemeInterviewer
+    theme = ThemeSummary(
+        genre="仙侠", emotion="虐心", protagonist="魔尊",
+        desire="自由", conflict="人与命运", setting="三界",
+        effect="让读者哭", scene=None,
+    )
+    interviewer = ThemeInterviewer()
+    import unittest.mock
+    with unittest.mock.patch('builtins.input', return_value=''):
+        result = theme.confirm(interviewer)
+    assert result is theme
+
+
+def test_theme_summary_confirm_retry():
+    from scribe.council.wizard import ThemeInterviewer
+    theme = ThemeSummary(
+        genre="仙侠", emotion="虐心", protagonist="魔尊",
+        desire="自由", conflict="人与命运", setting="三界",
+        effect="让读者哭", scene=None,
+    )
+    interviewer = ThemeInterviewer()
+    import unittest.mock
+    new_theme = ThemeSummary(
+        genre="都市", emotion="温暖", protagonist="白领",
+        desire="成功", conflict="人与人", setting="上海",
+        effect="让读者思考", scene=None,
+    )
+    with unittest.mock.patch('builtins.input', side_effect=['n', '']):
+        with unittest.mock.patch.object(interviewer, 'interview', return_value=new_theme):
+            result = theme.confirm(interviewer)
+    assert result.genre == "都市"

@@ -43,6 +43,32 @@ class ThemeSummary:
             scene=answers.get("scene"),
         )
 
+    def confirm(self, interviewer: "ThemeInterviewer") -> "ThemeSummary":
+        """显示摘要，用户确认。不确认则重新问答。"""
+        while True:
+            print(f"""
+📝 主题摘要：
+  类型：{self.genre}
+  情绪：{self.emotion}
+  主角：{self.protagonist}
+  目标：{self.desire}
+  冲突：{self.conflict}
+  世界观：{self.setting}
+  效果：{self.effect}
+  场景：{self.scene or '无'}
+""")
+            if input("确认？(Y/n) ").strip().lower() != "n":
+                return self
+            new_theme = asyncio.run(interviewer.interview())
+            self.genre = new_theme.genre
+            self.emotion = new_theme.emotion
+            self.protagonist = new_theme.protagonist
+            self.desire = new_theme.desire
+            self.conflict = new_theme.conflict
+            self.setting = new_theme.setting
+            self.effect = new_theme.effect
+            self.scene = new_theme.scene
+
     @property
     def summary(self) -> str:
         """生成汇总文本，供WriterRouter使用"""
