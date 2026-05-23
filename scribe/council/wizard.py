@@ -103,3 +103,50 @@ class ScopeParser:
 
         # 默认：大纲
         return WritingScope(mode="outline", target=None, description="生成大纲")
+
+
+class ThemeInterviewer:
+    """通过多轮问答确定写作主题"""
+
+    QUESTIONS = [
+        ("genre", "你想写什么类型？", ["仙侠", "都市", "科幻", "纯文学", "历史", "悬疑", "奇幻", "其他"]),
+        ("emotion", "故事的核心情绪是什么？", ["热血", "虐心", "温暖", "悬疑", "搞笑", "沉重", "治愈"]),
+        ("protagonist", "主角是什么样的人？（身份/性格/缺陷）", None),
+        ("desire", "主角最想要什么？（目标/执念）", None),
+        ("conflict", "最大的冲突是什么？", ["人与人", "人与命运", "人与自我", "人与社会", "人与自然"]),
+        ("setting", "故事发生在哪里？（世界观/时代/地点）", None),
+        ("effect", "你想达到什么效果？", ["让读者笑", "让读者哭", "让读者思考", "让读者紧张", "让读者感动"]),
+        ("scene", "有什么特别想写的场景或画面吗？（没有可跳过）", None),
+    ]
+
+    async def interview(self) -> ThemeSummary:
+        """执行问答，返回主题摘要"""
+        answers: dict[str, str] = {}
+        for key, question, options in self.QUESTIONS:
+            if options:
+                answer = self._ask_choice(question, options)
+            else:
+                answer = self._ask_text(question)
+            if answer:
+                answers[key] = answer
+        return ThemeSummary.from_answers(answers)
+
+    def _ask_choice(self, question: str, options: list[str]) -> str:
+        """选择题交互"""
+        print(f"\n🎯 {question}")
+        for i, opt in enumerate(options, 1):
+            print(f"  {i}. {opt}")
+        while True:
+            choice = input("  选择编号: ").strip()
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(options):
+                    return options[idx]
+            except ValueError:
+                pass
+            print("  无效选择，请重试")
+
+    def _ask_text(self, question: str) -> str:
+        """自由输入交互"""
+        print(f"\n🎯 {question}")
+        return input("  > ").strip()
