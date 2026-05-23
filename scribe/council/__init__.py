@@ -2,7 +2,7 @@
 
 from scribe.council.debate_state import WriterOpinion, WriterDebateState
 from scribe.council.router import WriterRouter
-from scribe.council.writer_agent import WriterAgent
+from scribe.council.writer_agent import WriterAgent, load_writer_persona
 from scribe.council.editor import EditorAgent
 from scribe.council.council import CouncilOrchestrator, CouncilConfig
 
@@ -11,6 +11,7 @@ __all__ = [
     "WriterDebateState",
     "WriterRouter",
     "WriterAgent",
+    "load_writer_persona",
     "EditorAgent",
     "CouncilOrchestrator",
     "CouncilConfig",

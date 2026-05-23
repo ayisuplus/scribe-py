@@ -6,16 +6,68 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scribe.types import Message, Role, SessionId
+from scribe.types import Message, PersonaConfig, Role, SessionId
 from scribe.agent.loop import AgentLoop
 from scribe.tools.registry import ToolRegistry
 from scribe.council.debate_state import WriterDebateState, WriterOpinion
 
 if TYPE_CHECKING:
     from scribe.llm.base import LlmDriver
-    from scribe.types import PersonaConfig
 
 logger = logging.getLogger(__name__)
+
+
+def load_writer_persona(writer_dir: Path) -> PersonaConfig:
+    """从 writers/ 目录加载作家人格（SKILL.md 格式）
+
+    SKILL.md 包含完整的人格定义，我们将其拆分为 identity 和 ishiki 两部分。
+    """
+    skill_path = writer_dir / "SKILL.md"
+    if not skill_path.exists():
+        # 兼容九鹭非香的旧格式（直接用 .md 文件）
+        md_files = list(writer_dir.glob("*.md"))
+        if md_files:
+            skill_path = md_files[0]
+        else:
+            raise FileNotFoundError(f"No SKILL.md or .md found in {writer_dir}")
+
+    content = skill_path.read_text(encoding="utf-8")
+
+    # 提取 YAML frontmatter 中的 name
+    name = writer_dir.name
+    if content.startswith("---"):
+        end = content.index("---", 3)
+        frontmatter = content[3:end]
+        for line in frontmatter.split("\n"):
+            if line.strip().startswith("name:"):
+                name = line.split(":", 1)[1].strip()
+                break
+
+    # 拆分：frontmatter 之后的内容作为 identity
+    # 表达DNA、决策启发式等作为 ishiki（说话风格）
+    parts = content.split("---", 2)
+    body = parts[2] if len(parts) >= 3 else content
+
+    # 提取身份卡和核心模型作为 identity
+    identity_sections = []
+    ishiki_sections = []
+
+    for section in body.split("\n## "):
+        section_lower = section.lower()
+        if any(k in section_lower for k in ["身份卡", "核心心智模型", "人物时间线", "价值观"]):
+            identity_sections.append("## " + section)
+        elif any(k in section_lower for k in ["表达dna", "决策启发式", "回答工作流", "角色扮演"]):
+            ishiki_sections.append("## " + section)
+        else:
+            identity_sections.append("## " + section)
+
+    identity = f"# {name}\n\n" + "\n".join(identity_sections)
+    ishiki = "\n".join(ishiki_sections) if ishiki_sections else ""
+
+    return PersonaConfig(
+        identity=identity,
+        ishiki=ishiki,
+    )
 
 
 class WriterAgent:
