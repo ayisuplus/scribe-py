@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from scribe.types import Message, Role, SessionId
 from scribe.agent.loop import AgentLoop
+from scribe.tools.registry import ToolRegistry
 from scribe.council.debate_state import WriterDebateState, WriterOpinion
 
 if TYPE_CHECKING:
@@ -28,7 +29,12 @@ class WriterAgent:
     ):
         self.writer_id = writer_id
         self._persona = persona
-        self._agent = AgentLoop(llm).with_persona(persona)
+        self._agent = AgentLoop(llm, ToolRegistry()).with_persona(persona)
+
+    @property
+    def _writer_name(self) -> str:
+        """Extract writer name from persona config, falling back to writer_id."""
+        return self._persona.name or self.writer_id
 
     async def debate(
         self,
@@ -43,7 +49,7 @@ class WriterAgent:
 
         return WriterOpinion(
             writer_id=self.writer_id,
-            writer_name=self._persona.name,
+            writer_name=self._writer_name,
             round=state.rounds,
             content=content,
             stance=self._extract_stance(content),
@@ -54,7 +60,7 @@ class WriterAgent:
         parts = []
 
         # 角色说明
-        parts.append(f"你现在以「{self._persona.name}」的身份参与一场写作讨论。")
+        parts.append(f"你现在以「{self._writer_name}」的身份参与一场写作讨论。")
 
         # 用户需求
         parts.append(f"\n## 讨论主题\n{state.topic}")
