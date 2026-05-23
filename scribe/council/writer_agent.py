@@ -65,6 +65,7 @@ def load_writer_persona(writer_dir: Path) -> PersonaConfig:
     ishiki = "\n".join(ishiki_sections) if ishiki_sections else ""
 
     return PersonaConfig(
+        name=name,
         identity=identity,
         ishiki=ishiki,
     )

@@ -36,7 +36,8 @@ description: 测试作家的创作方法论
     persona = load_writer_persona(tmp_path)
     assert persona.identity is not None
     assert "测试作家" in persona.identity
-    assert persona.ishiki is not None
+    assert persona.name == "test-perspective"
+    assert "表达DNA" in persona.ishiki
 
 
 def test_load_writer_persona_from_generic_md(tmp_path):
@@ -59,6 +60,32 @@ name: jiulufeixiang
     persona = load_writer_persona(tmp_path)
     assert persona.identity is not None
     assert "九鹭非香" in persona.identity
+
+
+def test_unknown_sections_go_to_identity(tmp_path):
+    """未知section默认归入identity"""
+    skill_content = """---
+name: unknown-test
+---
+
+# Unknown Writer
+
+## 身份卡
+我是未知作家。
+
+## 神秘领域
+这个section不在8个关键词中。
+
+## 另一个未知section
+也不在关键词列表里。
+"""
+    skill_path = tmp_path / "SKILL.md"
+    skill_path.write_text(skill_content, encoding="utf-8")
+
+    persona = load_writer_persona(tmp_path)
+    assert "神秘领域" in persona.identity
+    assert "另一个未知section" in persona.identity
+    assert persona.ishiki == ""
 
 
 def test_load_writer_persona_missing_file(tmp_path):
