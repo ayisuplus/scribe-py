@@ -7,7 +7,7 @@ This package provides:
 - memory: Three-layer memory system (episodic, semantic, procedural)
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "types",
     "kernel",

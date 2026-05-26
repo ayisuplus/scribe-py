@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -22,7 +21,9 @@ from pathlib import Path
 import click
 
 from scribe.api.state import ConfigUpdate, ScribeState
-from scribe.cli.tui import InteractiveMode, TuiResult
+from scribe.bookshelf import Book, Bookshelf
+from scribe.cli.onboarding import run_onboarding
+from scribe.cli.tui import InteractiveMode
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,11 @@ CONFIG_PATH = DATA_DIR / "config.toml"
 
 
 # ── Config helpers ─────────────────────────────────────────────────────
+
+
+def _toml_path(path: Path) -> str:
+    """Return a TOML-safe path string."""
+    return path.as_posix()
 
 
 def get_api_key_from_env(provider: str) -> str | None:
@@ -63,10 +69,11 @@ def auto_configure() -> dict:
 
     # Write minimal config
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    data_dir = _toml_path(DATA_DIR / "data")
     config_toml = f"""[core]
 default_provider = "{provider}"
 default_model = "{model}"
-data_dir = "{DATA_DIR / "data"}"
+data_dir = "{data_dir}"
 
 [llm.openai]
 api_key_env = "OPENAI_API_KEY"
@@ -108,8 +115,10 @@ def ensure_config() -> None:
         auto_configure()
         return
 
-    # No config, no env keys — delegate to setup wizard (handled in main)
+    # No config, no env keys: run setup before anything needs an LLM.
     print("  No configuration found. Launching setup wizard...\n", file=sys.stderr)
+    result = setup_wizard()
+    write_config(result)
 
 
 # ── Setup wizard ────────────────────────────────────────────────────────
@@ -172,7 +181,7 @@ def setup_wizard() -> dict:
         print("  (Find it at your provider's dashboard — won't echo)")
         import getpass
 
-        api_key = getpass.getpass(f"  API key: ")
+        api_key = getpass.getpass("  API key: ")
         api_key = api_key.strip()
         if not api_key:
             print("  Error: API key cannot be empty. Run `scribe --setup` to retry.")
@@ -253,10 +262,11 @@ def write_config(result: dict) -> None:
     if api_key:
         os.environ[env_var] = api_key
 
+    data_dir = _toml_path(DATA_DIR / "data")
     config_toml = f"""[core]
 default_provider = "{provider}"
 default_model = "{model}"
-data_dir = "{DATA_DIR / "data"}"
+data_dir = "{data_dir}"
 
 [llm.openai]
 api_key_env = "OPENAI_API_KEY"
@@ -341,11 +351,13 @@ async def run_single_prompt(state: ScribeState, session_id: str, prompt: str) ->
 # ── Main CLI group ─────────────────────────────────────────────────────
 
 
-@click.group()
-@click.version_option(version="0.1.0", prog_name="scribe")
-def cli() -> None:
+@click.group(invoke_without_command=True)
+@click.pass_context
+@click.version_option(version="0.3.0", prog_name="scribe")
+def cli(ctx: click.Context) -> None:
     """Scribe — AI writing companion."""
-    pass
+    if ctx.invoked_subcommand is None:
+        ctx.invoke(run)
 
 
 @cli.command()
@@ -358,7 +370,6 @@ def setup() -> None:
 
 def _select_book_interactive(bookshelf: "Bookshelf") -> "Book | None":
     """Interactive book selection prompt."""
-    from scribe.bookshelf import Book, Bookshelf
 
     books = bookshelf.list_books()
 
@@ -374,7 +385,7 @@ def _select_book_interactive(bookshelf: "Bookshelf") -> "Book | None":
     print("  " + "─" * 30)
     for i, b in enumerate(books, 1):
         print(f"  {i}. {b.name} ({b.genre})")
-    print(f"  N. 新建书籍")
+    print("  N. 新建书籍")
     print()
 
     while True:
@@ -420,8 +431,6 @@ def run(
 
     With no arguments: interactive TUI session
     """
-    from scribe.bookshelf import Book, Bookshelf
-
     # Setup mode handled by separate command
     ensure_config()
 
@@ -444,6 +453,7 @@ def run(
 
     # Select or create book
     selected_book: Book | None = None
+    startup_lines: list[str] | None = None
 
     if new_book:
         description = click.prompt("  简介 (可选)", default="", show_default=False)
@@ -457,13 +467,13 @@ def run(
             sys.exit(1)
         bookshelf.select(book)
     else:
-        # Interactive book selection
-        selected_book = _select_book_interactive(bookshelf)
+        onboarding = run_onboarding(bookshelf)
+        selected_book = onboarding.book
+        startup_lines = onboarding.startup_lines
 
     # 向导模式（选书后自动进入）
-    if selected_book and not council:
+    if selected_book and council:
         from scribe.council.wizard import CouncilWizard
-        from scribe.bookshelf import Bookshelf
         try:
             from scribe.llm import create_llm
             if CONFIG_PATH.exists():
@@ -512,9 +522,17 @@ def run(
         return
 
     # Interactive TUI
-    mode = InteractiveMode(state, sid)
+    if startup_lines is None:
+        mode = InteractiveMode(state, sid)
+    else:
+        mode = InteractiveMode(state, sid, startup_lines=startup_lines)
     mode.run()
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console script entry point."""
     cli()
+
+
+if __name__ == "__main__":
+    main()

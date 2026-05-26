@@ -2,13 +2,13 @@
 Tests for ScribeState initialization and send_message.
 """
 
-import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from pathlib import Path
 import tempfile
 
 from scribe.api.state import ScribeState
+from scribe.types import ChatResponse
 
 
 class TestScribeStateInit:
@@ -25,7 +25,7 @@ class TestScribeStateInit:
     async def test_seed_persona_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("pathlib.Path.home", return_value=Path(tmpdir)):
-                state = await ScribeState.init()
+                _state = await ScribeState.init()
                 persona_dir = Path(tmpdir) / ".scribe" / "personas"
                 if persona_dir.exists():
                     # Files should be seeded
@@ -47,8 +47,8 @@ class TestScribeStateSessions:
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("pathlib.Path.home", return_value=Path(tmpdir)):
                 state = await ScribeState.init()
-                sid1 = await state.create_session("Session 1")
-                sid2 = await state.create_session("Session 2")
+                _sid1 = await state.create_session("Session 1")
+                _sid2 = await state.create_session("Session 2")
                 sessions = await state.list_sessions()
                 assert len(sessions) == 2
 
@@ -72,6 +72,29 @@ class TestScribeStateConfig:
                 # Without env vars set, should return False (unless real keys exist in env)
                 result = state.has_api_key_blocking("openai")
                 assert isinstance(result, bool)
+
+    @pytest.mark.asyncio
+    async def test_init_loads_config_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            config_dir = home / ".scribe"
+            config_dir.mkdir()
+            (config_dir / "config.toml").write_text(
+                '\n'.join([
+                    "[core]",
+                    'default_provider = "deepseek"',
+                    'default_model = "deepseek-chat"',
+                    f"data_dir = '{config_dir / 'data'}'",
+                ]),
+                encoding="utf-8",
+            )
+
+            with patch("pathlib.Path.home", return_value=home):
+                state = await ScribeState.init()
+
+            view = state.get_config_view()
+            assert view.default_provider == "deepseek"
+            assert view.default_model == "deepseek-chat"
 
 
 class TestScribeStateSendMessage:
@@ -99,6 +122,33 @@ class TestScribeStateSendMessage:
                 result = await state.send_message("test-session-id", "Hello")
                 assert result == "Mock response"
                 mock_llm.chat.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_send_message_preserves_session_history(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("pathlib.Path.home", return_value=Path(tmpdir)):
+                state = await ScribeState.init()
+                sid = await state.create_session("Draft")
+
+                mock_llm = AsyncMock()
+                mock_llm.chat = AsyncMock(
+                    side_effect=[
+                        ChatResponse(content="First response"),
+                        ChatResponse(content="Second response"),
+                    ]
+                )
+                mock_llm.max_context_tokens = lambda: 128_000
+                mock_llm.supports_tools = lambda: True
+                state._llm = mock_llm
+
+                await state.send_message(sid, "First prompt")
+                await state.send_message(sid, "Second prompt")
+
+                second_request = mock_llm.chat.call_args_list[-1].args[0]
+                contents = [message.content for message in second_request.messages]
+                assert "First prompt" in contents
+                assert "First response" in contents
+                assert "Second prompt" in contents
 
 
 if __name__ == "__main__":

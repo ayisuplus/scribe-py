@@ -5,17 +5,14 @@ ScribeState — main API state bridge layer.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
-import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Callable
 
 from scribe.types import (
-    ChatRequest,
     ConfigUpdate,
     ConfigView,
     Message,
@@ -26,9 +23,10 @@ from scribe.types import (
 )
 
 if TYPE_CHECKING:
-    from scribe.agent import AgentLoop
+    from scribe.bookshelf import Book, Bookshelf
     from scribe.llm.base import LlmDriver
     from scribe.memory.episodic import EpisodicStore
+    from scribe.memory.palace import MemPalaceStore
     from scribe.memory.procedural import ProceduralStore
     from scribe.memory.semantic import SemanticStore
     from scribe.tools.registry import ToolRegistry
@@ -90,7 +88,7 @@ class ScribeState:
     def __init__(self) -> None:
         self._config = KernelConfig()
         self._api_keys: dict[str, str] = {}
-        self._event_handlers: list[callable] = []
+        self._event_handlers: list[Callable] = []
         self._episodic: "EpisodicStore | None" = None
         self._semantic: "SemanticStore | None" = None
         self._procedural: "ProceduralStore | None" = None
@@ -99,6 +97,7 @@ class ScribeState:
         self._tools: "ToolRegistry | None" = None
         self._skills: list = []  # deprecated, kept for compatibility
         self._sessions: dict[SessionId, Session] = {}
+        self._messages: dict[SessionId, list[Message]] = {}
         self._cancel_tokens: dict[SessionId, list[asyncio.Event]] = {}
         self._initialized = False
         self._book: "Book | None" = None
@@ -112,18 +111,19 @@ class ScribeState:
             book: Optional Book to scope all memory/config to.
         """
         from scribe.bookshelf import Bookshelf
+        from scribe.kernel.config import load_from_file
 
         self = cls()
         self._book = book
+        self._load_config(load_from_file(Path.home() / ".scribe" / "config.toml"))
 
         # Determine data directory (book-scoped or global)
         if book:
             bookshelf = Bookshelf(self._config.data_dir)
-            data_dir = bookshelf.get_book_data_dir(book.name)
+            _ = bookshelf.get_book_data_dir(book.name)
             persona_dir = bookshelf.get_book_persona_dir(book.name)
             self._bookshelf = bookshelf
         else:
-            data_dir = self._config.data_dir
             persona_dir = self._config.persona_dir
             self._bookshelf = None
 
@@ -170,6 +170,30 @@ class ScribeState:
 
         self._initialized = True
         return self
+
+    def _load_config(self, loaded: object) -> None:
+        """Copy kernel config into the simplified state bridge config."""
+        self._config.default_provider = loaded.core.default_provider
+        self._config.default_model = loaded.core.default_model
+        self._config.data_dir = loaded.core.data_dir
+        self._config.memory_episodic_enabled = loaded.memory.episodic_enabled
+        self._config.memory_semantic_enabled = loaded.memory.semantic_enabled
+        self._config.memory_procedural_enabled = loaded.memory.procedural_enabled
+        self._config.memory_style_update_interval = loaded.memory.style_update_interval
+        self._config.tools_enabled = list(loaded.tools.enabled)
+        self._config.persona_enabled = loaded.persona.enabled
+        self._config.persona_dir = loaded.persona.dir
+        self._config.writing_enabled = loaded.writing.enabled
+        self._config.palace_enabled = loaded.palace.enabled
+        self._config.palace_path = loaded.palace.path
+        self._config.palace_auto_mine = loaded.palace.auto_mine
+        self._config.palace_default_wing = loaded.palace.default_wing
+        self._config.palace_default_room = loaded.palace.default_room
+
+        for name in ("openai", "anthropic", "deepseek"):
+            provider = getattr(loaded.llm, name, None)
+            if provider and provider.api_key:
+                self._api_keys[name] = provider.api_key
 
     # ── LLM builder ──
 
@@ -242,6 +266,7 @@ class ScribeState:
             message_count=0,
         )
         self._sessions[sid] = session
+        self._messages[sid] = []
         return sid
 
     async def list_sessions(self) -> list[SessionInfo]:
@@ -271,13 +296,11 @@ class ScribeState:
     ) -> str:
         """Send message with optional streaming."""
         from scribe.agent.loop import AgentLoop
-        from scribe.tools.base import ToolContext
 
-        # Load history (placeholder for episodic)
-        history: list[Message] = []
-
+        history = list(self._messages.get(session_id, []))
         conversation = list(history)
-        conversation.append(Message(role=Role.USER, content=text))
+        user_message = Message(role=Role.USER, content=text)
+        conversation.append(user_message)
 
         cancel = asyncio.Event()
         if session_id in self._cancel_tokens:
@@ -286,6 +309,8 @@ class ScribeState:
             self._cancel_tokens[session_id] = [cancel]
 
         # Build agent
+        if not self._llm or not self._tools:
+            raise RuntimeError("LLM and tools must be initialized before sending messages")
         agent = AgentLoop(
             llm=self._llm,
             tools=self._tools,
@@ -329,8 +354,9 @@ class ScribeState:
 
         # Forwarder: agent deltas → stream_queue + event bus
         forwarder_task: "asyncio.Task | None" = None
+        internal_queue: "asyncio.Queue[str] | None" = None
         if stream_queue:
-            internal_queue: "asyncio.Queue[str]" = asyncio.Queue()
+            internal_queue = asyncio.Queue()
 
             async def _forward():
                 while True:
@@ -361,6 +387,11 @@ class ScribeState:
                 pass
 
         await self._publish_event(session_id, result, done=True)
+
+        assistant_message = Message(role=Role.ASSISTANT, content=result)
+        self._messages.setdefault(session_id, []).extend(
+            [user_message, assistant_message]
+        )
 
         # Update session
         if session_id in self._sessions:
@@ -453,4 +484,4 @@ class ScribeState:
         }.get(provider)
         if env_var:
             return bool(os.environ.get(env_var))
-        return result
+        return False
