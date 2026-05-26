@@ -5,10 +5,9 @@ Tests for OpenAiDriver — mocks httpx to verify request format.
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import json
 
 from scribe.llm.openai import OpenAiDriver
-from scribe.types import ChatRequest, ChatResponse, Message, Role, ToolDefinition
+from scribe.types import ChatRequest, Message, Role, ToolDefinition
 
 
 class TestOpenAiDriverBuildMessages:

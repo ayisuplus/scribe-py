@@ -8,10 +8,10 @@ Combines all memory layers into a complete system prompt.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import Optional
 
 from scribe.memory.episodic import EpisodicStore
+from scribe.memory.palace import MemPalaceStore
 from scribe.memory.semantic import SemanticStore
 from scribe.memory.procedural import ProceduralStore
 from scribe.memory.persona import PersonaLoader

@@ -6,12 +6,12 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from asyncio import Queue as AsyncQueue
+    pass
 
-from scribe.types import ChatRequest, ChatResponse, ToolDefinition
+from scribe.types import ChatRequest, ChatResponse
 
 
 class LlmDriver(ABC):

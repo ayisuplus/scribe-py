@@ -1,9 +1,8 @@
 import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from scribe.council.writer_agent import WriterAgent
-from scribe.council.debate_state import WriterDebateState, WriterOpinion
+from scribe.council.debate_state import WriterDebateState
 
 
 @pytest.fixture

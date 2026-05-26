@@ -4,14 +4,12 @@ Tool registry.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from scribe.tools.base import Tool
 from scribe.types import ToolDefinition, FunctionDefinition
 
-from scribe.types import ToolDefinition
 
 
 class ToolRegistry:

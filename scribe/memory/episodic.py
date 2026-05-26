@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-from scribe.types import MemoryEvent, Role, SessionId
+from scribe.types import MemoryEvent, SessionId
 
 
 class EpisodicStore:

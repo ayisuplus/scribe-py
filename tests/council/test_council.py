@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from scribe.council.council import CouncilOrchestrator, CouncilConfig
 from scribe.council.debate_state import WriterOpinion

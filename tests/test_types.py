@@ -2,7 +2,6 @@
 Tests for scribe.types module.
 """
 
-import pytest
 from datetime import datetime, timezone
 
 from scribe.types import (

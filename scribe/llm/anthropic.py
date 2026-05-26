@@ -17,9 +17,7 @@ from scribe.types import (
     ChatRequest,
     ChatResponse,
     FunctionCall,
-    Message,
     Role,
-    StreamChunk,
     ToolCall,
     ToolDefinition,
     Usage,
@@ -108,7 +106,7 @@ def _parse_response(resp_json: dict) -> ChatResponse:
         elif btype == "tool_use":
             tc = ToolCall(
                 id=block.get("id", ""),
-                type="function",
+                call_type="function",
                 function=FunctionCall(
                     name=block.get("name", ""),
                     arguments=json.dumps(block.get("input", {})),
@@ -215,7 +213,7 @@ async def _stream_anthropic(
                     if name:
                         final_calls.append(ToolCall(
                             id=bid,
-                            type="function",
+                            call_type="function",
                             function=FunctionCall(name=name, arguments=args),
                         ))
 

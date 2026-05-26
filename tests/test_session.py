@@ -53,7 +53,7 @@ class TestSessionManager:
         manager = SessionManager(sessions_dir)
         
         id1 = manager.create_session("First")
-        id2 = manager.create_session("Second")
+        _id2 = manager.create_session("Second")
         
         # Update first session to make it more recent
         import time

@@ -10,8 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # Ensure the package is on the path
 sys.path.insert(0, ".")
 
-from scribe.api.state import ScribeState, KernelConfig, Session
-from scribe.types import SessionId
+from scribe.api.state import ScribeState, KernelConfig
 
 
 async def test_create_session():

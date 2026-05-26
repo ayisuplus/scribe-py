@@ -1,4 +1,3 @@
-import pytest
 from scribe.council.wizard import ThemeSummary, WritingScope, ScopeParser, ThemeInterviewer
 
 
@@ -102,7 +101,6 @@ def test_scope_parser_default():
 
 
 def test_theme_interviewer_questions():
-    from scribe.council.wizard import ThemeInterviewer
     interviewer = ThemeInterviewer()
     assert len(interviewer.QUESTIONS) == 8
     assert interviewer.QUESTIONS[0][0] == "genre"
@@ -110,7 +108,6 @@ def test_theme_interviewer_questions():
 
 
 def test_theme_interviewer_ask_choice():
-    from scribe.council.wizard import ThemeInterviewer
     interviewer = ThemeInterviewer()
     import unittest.mock
     with unittest.mock.patch('builtins.input', return_value='1'):
@@ -119,7 +116,6 @@ def test_theme_interviewer_ask_choice():
 
 
 def test_theme_interviewer_ask_text():
-    from scribe.council.wizard import ThemeInterviewer
     interviewer = ThemeInterviewer()
     import unittest.mock
     with unittest.mock.patch('builtins.input', return_value='测试回答'):
@@ -128,7 +124,6 @@ def test_theme_interviewer_ask_text():
 
 
 def test_theme_summary_confirm_accept():
-    from scribe.council.wizard import ThemeInterviewer
     theme = ThemeSummary(
         genre="仙侠", emotion="虐心", protagonist="魔尊",
         desire="自由", conflict="人与命运", setting="三界",
@@ -142,7 +137,6 @@ def test_theme_summary_confirm_accept():
 
 
 def test_theme_summary_confirm_retry():
-    from scribe.council.wizard import ThemeInterviewer
     theme = ThemeSummary(
         genre="仙侠", emotion="虐心", protagonist="魔尊",
         desire="自由", conflict="人与命运", setting="三界",

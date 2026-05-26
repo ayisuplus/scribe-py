@@ -5,7 +5,6 @@ Mocks the mempalace package — no real ChromaDB needed.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
 
 from scribe.types import PalaceHit, PalaceStatus
 

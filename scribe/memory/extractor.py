@@ -8,7 +8,6 @@ Uses regex patterns to identify entities in text.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from scribe.memory.semantic import SemanticStore
 from scribe.types import MemoryEvent

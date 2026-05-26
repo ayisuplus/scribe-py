@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -63,7 +64,11 @@ def _choose_book(bookshelf: "Bookshelf") -> "Book | None":
         name = click.prompt("  Book name")
         description = click.prompt("  Description", default="", show_default=False)
         genre = click.prompt("  Genre", default="fiction", show_default=True)
-        return bookshelf.create(name, description=description, genre=genre)
+        try:
+            return bookshelf.create(name, description=description, genre=genre)
+        except Exception as e:
+            click.echo(f"  Failed to create book: {e}", err=True)
+            sys.exit(1)
 
     click.echo("\n  Books")
     for i, book in enumerate(books, 1):
@@ -76,7 +81,11 @@ def _choose_book(bookshelf: "Bookshelf") -> "Book | None":
             name = click.prompt("  Book name")
             description = click.prompt("  Description", default="", show_default=False)
             genre = click.prompt("  Genre", default="fiction", show_default=True)
-            return bookshelf.create(name, description=description, genre=genre)
+            try:
+                return bookshelf.create(name, description=description, genre=genre)
+            except Exception as e:
+                click.echo(f"  Failed to create book: {e}", err=True)
+                continue
         try:
             index = int(choice) - 1
         except ValueError:

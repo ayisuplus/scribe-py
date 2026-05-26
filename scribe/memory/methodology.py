@@ -11,7 +11,6 @@ Enhanced with huashu-proofreading anti-AI patterns:
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from scribe.types import (
     AuditIssue,
@@ -278,9 +277,9 @@ class WritingMethodology:
             
             # Skip dialogue-heavy paragraphs (lines starting with quotes or dash)
             is_dialogue = any(
-                l.strip().startswith('"') or l.strip().startswith('"') 
-                or l.strip().startswith('—') or l.strip().startswith('-')
-                for l in trimmed.split("\n")
+                ln.strip().startswith('"') or ln.strip().startswith('"') 
+                or ln.strip().startswith('—') or ln.strip().startswith('-')
+                for ln in trimmed.split("\n")
             )
             
             char_count = len(trimmed)

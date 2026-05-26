@@ -101,7 +101,7 @@ enabled = ["file_read", "file_write", "web_search", "web_fetch", "memory_search"
 
 
 def ensure_config() -> None:
-    """Ensure config exists, auto-creating if needed."""
+    """Ensure config exists. May run interactive setup wizard as side effect."""
     if CONFIG_PATH.exists():
         return
 
@@ -368,45 +368,6 @@ def setup() -> None:
     print("  Run `python -m scribe` to start your writing session!")
 
 
-def _select_book_interactive(bookshelf: "Bookshelf") -> "Book | None":
-    """Interactive book selection prompt."""
-
-    books = bookshelf.list_books()
-
-    if not books:
-        print("\n  📚 书架空空如也。来创建第一本书吧！\n")
-        name = click.prompt("  书名")
-        description = click.prompt("  简介 (可选)", default="", show_default=False)
-        genre = click.prompt("  类型", default="fiction", show_default=True)
-        return bookshelf.create(name, description=description, genre=genre)
-
-    # Show book list
-    print("\n  📚 书架")
-    print("  " + "─" * 30)
-    for i, b in enumerate(books, 1):
-        print(f"  {i}. {b.name} ({b.genre})")
-    print("  N. 新建书籍")
-    print()
-
-    while True:
-        choice = click.prompt("  选择", type=str).strip()
-        if choice.lower() == "n":
-            name = click.prompt("  书名")
-            description = click.prompt("  简介 (可选)", default="", show_default=False)
-            genre = click.prompt("  类型", default="fiction", show_default=True)
-            return bookshelf.create(name, description=description, genre=genre)
-        try:
-            idx = int(choice) - 1
-            if 0 <= idx < len(books):
-                selected = books[idx]
-                bookshelf.select(selected.name)
-                print(f"\n  📖 正在打开: {selected.name}")
-                return selected
-        except ValueError:
-            pass
-        print("  无效选择，请重试")
-
-
 @cli.command()
 @click.option("-p", "--prompt", help="Single-shot prompt (non-interactive)")
 @click.option("-s", "--session", "session_id", help="Resume a specific session by ID prefix")
@@ -415,7 +376,7 @@ def _select_book_interactive(bookshelf: "Bookshelf") -> "Book | None":
 @click.option("--book", help="Book name to open (skips selection prompt)")
 @click.option("--new-book", help="Create a new book and open it")
 @click.option("--list-books", is_flag=True, help="List all books on the bookshelf")
-@click.option("--council", is_flag=True, help="跳过向导，直接进入普通TUI")
+@click.option("--council", is_flag=True, help="启动作家议会向导")
 def run(
     prompt: str | None,
     session_id: str | None,
@@ -500,28 +461,25 @@ def run(
         print("  Try `python -m scribe setup` first.", file=sys.stderr)
         sys.exit(1)
 
-    # Override model
-    if model:
-        asyncio.run(
-            state.update_config(
+    async def _prepare_state() -> str | None:
+        """Batch async startup operations to avoid multiple event-loop creations."""
+        if model:
+            await state.update_config(
                 ConfigUpdate(default_provider=None, default_model=model)
             )
-        )
+        if list_sessions:
+            await list_sessions_cmd(state)
+            return None
+        return await resolve_session(state, session_id)
 
-    # List sessions
-    if list_sessions:
-        asyncio.run(list_sessions_cmd(state))
+    sid = asyncio.run(_prepare_state())
+    if sid is None:
         return
 
-    # Resolve session
-    sid = asyncio.run(resolve_session(state, session_id))
-
-    # Single-shot
     if prompt:
         asyncio.run(run_single_prompt(state, sid, prompt))
         return
 
-    # Interactive TUI
     if startup_lines is None:
         mode = InteractiveMode(state, sid)
     else:

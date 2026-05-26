@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from scribe.types import (
     AuditIssue,
@@ -29,6 +29,11 @@ from scribe.types import (
 
 if TYPE_CHECKING:
     from scribe.llm.base import LlmDriver
+    from scribe.memory.episodic import EpisodicStore
+    from scribe.memory.hook_ledger import HookLedgerManager
+    from scribe.memory.palace import MemPalaceStore
+    from scribe.memory.procedural import ProceduralStore
+    from scribe.memory.semantic import SemanticStore
     from scribe.tools.base import ToolContext
     from scribe.tools.registry import ToolRegistry
 
@@ -356,7 +361,6 @@ class AgentLoop:
         ctx: "ToolContext",
     ) -> ToolResult:
         """Execute a single tool call with retry and timeout."""
-        from scribe.tools.base import ToolContext as TContext
 
         tool = self._tools.get(tc.function.name)
         if not tool:
@@ -459,7 +463,7 @@ class AgentLoop:
 
         if config.density_rules:
             if config.density_rules.hook_per_chars > 0:
-                paragraphs = [l for l in lines if len(l) > 40]
+                paragraphs = [line for line in lines if len(line) > 40]
                 if paragraphs:
                     avg = char_count / max(len(paragraphs), 1)
                     if avg > config.density_rules.hook_per_chars * 3:
@@ -472,8 +476,8 @@ class AgentLoop:
 
         if config.paragraph_rules:
             short_count = sum(
-                1 for l in lines
-                if 0 < len(l) < config.paragraph_rules.min_narrative_chars
+                1 for line in lines
+                if 0 < len(line) < config.paragraph_rules.min_narrative_chars
             )
             if short_count > config.paragraph_rules.max_short_paragraphs:
                 issues.append(AuditIssue(

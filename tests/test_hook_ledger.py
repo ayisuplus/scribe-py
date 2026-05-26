@@ -2,13 +2,12 @@
 Tests for scribe.memory.hook_ledger module.
 """
 
-import json
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from scribe.types import HookEntry, HookStatus, HookLedger
+from scribe.types import HookEntry, HookStatus
 from scribe.memory.hook_ledger import HookLedgerManager
 
 

@@ -2,9 +2,7 @@
 Tests for Bookshelf — multi-book management.
 """
 
-import json
 import pytest
-from pathlib import Path
 
 from scribe.bookshelf import Book, Bookshelf
 

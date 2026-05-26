@@ -4,14 +4,11 @@ Tests for scribe.memory.methodology module.
 Critical tests for Chinese writing rules.
 """
 
-import pytest
 
 from scribe.types import (
     WritingMethodologyConfig,
     DensityRules,
     ParagraphRules,
-    WritingAuditResult,
-    AuditIssue,
 )
 
 from scribe.memory.methodology import WritingMethodology

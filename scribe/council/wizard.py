@@ -225,11 +225,11 @@ class CouncilWizard:
 
     def _select_writers(self, recommended: list[str]) -> list[str]:
         """显示推荐，用户可修改"""
-        print(f"\n✍️ 推荐作家团：")
+        print("\n✍️ 推荐作家团：")
         for i, wid in enumerate(recommended, 1):
             print(f"  {i}. {wid}")
 
-        print(f"\n可用作家：")
+        print("\n可用作家：")
         all_writers = list(WriterRouter.WRITER_GENRES.keys())
         for i, wid in enumerate(all_writers, 1):
             print(f"  {i}. {wid}")

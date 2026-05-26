@@ -9,13 +9,7 @@ import pytest
 
 from scribe.kernel.config import (
     KernelConfig,
-    CoreConfig,
-    LlmConfig,
-    ProviderConfig,
-    MemoryConfig,
-    ToolsConfig,
     PersonaSettings,
-    WritingSettings,
     PalaceSettings,
     load_from_file,
     save_to_file,
@@ -177,7 +171,6 @@ class TestPalaceSettings:
 
     def test_default_palace_settings(self):
         """Test default PalaceSettings values."""
-        from scribe.kernel.config import PalaceSettings
         settings = PalaceSettings()
 
         assert settings.enabled is True

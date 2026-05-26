@@ -1,5 +1,4 @@
 # tests/council/test_debate_state.py
-import pytest
 from scribe.council.debate_state import WriterOpinion, WriterDebateState
 
 

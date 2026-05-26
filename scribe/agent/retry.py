@@ -6,8 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import random
-import time
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Generic
 
 from dataclasses import dataclass
 
@@ -96,8 +95,11 @@ class RetryManager:
             try:
                 result = await operation()
                 if result.is_ok():
-                    return result.ok_value
-                error_msg = result.error_value
+                    ok_val = result.ok_value
+                    if ok_val is not None:
+                        return ok_val
+                    raise RetryError("Result ok_value is None", RetryableError.UNKNOWN)
+                error_msg = result.error_value or "Unknown error"
                 error_class = _classify_error(error_msg)
 
                 if error_class == RetryableError.BUSINESS_LOGIC:
@@ -135,8 +137,11 @@ class RetryManager:
                     timeout=timeout,
                 )
                 if result.is_ok():
-                    return result.ok_value
-                error_msg = result.error_value
+                    ok_val = result.ok_value
+                    if ok_val is not None:
+                        return ok_val
+                    raise RetryError("Result ok_value is None", RetryableError.UNKNOWN)
+                error_msg = result.error_value or "Unknown error"
                 error_class = _classify_error(error_msg)
 
                 if error_class == RetryableError.BUSINESS_LOGIC:
@@ -161,7 +166,7 @@ class RetryManager:
 
 
 # Simple Result type (not stdlib)
-class Result:
+class Result(Generic[T]):
     __slots__ = ("_ok", "_err", "_ok_val", "_err_val")
 
     def __init__(self, ok_val=None, err_val=None):
@@ -179,11 +184,11 @@ class Result:
         return cls(err_val=value)
 
     @property
-    def ok_value(self) -> T:
+    def ok_value(self) -> T | None:
         return self._ok_val
 
     @property
-    def error_value(self) -> str:
+    def error_value(self) -> str | None:
         return self._err_val
 
     def is_ok(self) -> bool:

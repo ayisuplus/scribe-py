@@ -6,7 +6,6 @@ Ports scribe-kernel/src/config.rs to Python with TOML loading/saving.
 
 from __future__ import annotations
 
-import os
 import toml
 from dataclasses import dataclass, field
 from pathlib import Path

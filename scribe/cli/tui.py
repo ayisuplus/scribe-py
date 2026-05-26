@@ -11,6 +11,7 @@ import importlib.util
 from enum import Enum
 from typing import Callable
 
+from scribe import __version__
 from scribe.api.state import ConfigUpdate, ScribeState
 
 try:
@@ -44,7 +45,6 @@ HELP_LINES = [
     "  Commands:",
     "  /help          Show this help",
     "  /status        Show config and session info",
-    "  /skills        List available skills",
     "  /provider <p>  Switch provider (openai|anthropic|deepseek)",
     "  /model <name>  Switch model",
     "  /clear         Clear current conversation",
@@ -133,16 +133,6 @@ class InteractiveMode:
         if text in ("/onboard", "/start"):
             for line in self.startup_lines:
                 emit(line)
-            return CommandOutcome.HANDLED
-
-        if text == "/skills":
-            skills = self.state.list_skills()
-            if not skills:
-                emit("  No skills loaded.")
-            else:
-                emit(f"  {len(skills)} skill(s) loaded:")
-                for s in skills:
-                    emit(f"  - {s.name}: {s.description}")
             return CommandOutcome.HANDLED
 
         if text.startswith("/provider "):
@@ -326,7 +316,7 @@ class InteractiveMode:
         while True:
             console.print(
                 Panel(
-                    f"[cyan]Scribe v0.1[/cyan]  session:[yellow]{self.session_id[:8]}[/yellow]",
+                    f"[cyan]Scribe v{__version__}[/cyan]  session:[yellow]{self.session_id[:8]}[/yellow]",
                     title="",
                     border_style="cyan",
                 )

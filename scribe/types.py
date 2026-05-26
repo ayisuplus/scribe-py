@@ -7,8 +7,8 @@ Ports scribe-types/src/lib.rs to Python with dataclasses.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Optional, Any
 

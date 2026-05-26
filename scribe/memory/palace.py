@@ -11,7 +11,6 @@ import asyncio
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from scribe.types import PalaceHit, PalaceStatus
 

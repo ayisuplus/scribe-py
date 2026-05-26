@@ -3,12 +3,10 @@ Tests for ToolRegistry.
 """
 
 import pytest
-from unittest.mock import AsyncMock
 from pathlib import Path
 
 from scribe.tools.registry import ToolRegistry
 from scribe.tools.base import Tool, ToolContext, ToolResult
-from scribe.types import ToolDefinition
 
 
 class DummyTool(Tool):

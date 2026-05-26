@@ -18,9 +18,7 @@ from scribe.types import (
     ChatResponse,
     FunctionCall,
     Message,
-    StreamChunk,
     ToolCall,
-    ToolDefinition,
     Usage,
 )
 
@@ -184,7 +182,7 @@ async def _stream_chat_openai(
             if name:
                 final_calls.append(ToolCall(
                     id=id_val,
-                    type="function",
+                    call_type="function",
                     function=FunctionCall(name=name, arguments=args),
                 ))
 

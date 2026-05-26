@@ -174,21 +174,21 @@ class HookLedgerManager:
                 f"- [{h.id}] {h.description} (第{h.seed_chapter}章种下)"
                 for h in planted
             ]
-            sections.append(f"已种下：\n" + "\n".join(items))
+            sections.append("已种下：\n" + "\n".join(items))
         
         if pressured:
             items = [
                 f"- [{h.id}] {h.description} (第{h.seed_chapter}章种下)"
                 for h in pressured
             ]
-            sections.append(f"正在施压：\n" + "\n".join(items))
+            sections.append("正在施压：\n" + "\n".join(items))
         
         if deferred:
             items = [
                 f"- [{h.id}] {h.description} (暂缓)"
                 for h in deferred
             ]
-            sections.append(f"暂缓：\n" + "\n".join(items))
+            sections.append("暂缓：\n" + "\n".join(items))
         
         return "\n\n".join(sections)
 

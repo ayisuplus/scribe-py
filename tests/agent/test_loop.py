@@ -4,7 +4,7 @@ Tests for AgentLoop — basic flow with mock LLM.
 
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 from scribe.agent.loop import AgentLoop
 from scribe.agent import AgentConfig
