@@ -36,7 +36,7 @@ class TestToolRegistry:
     def test_list(self):
         reg = ToolRegistry()
         reg.register(DummyTool())
-        listed = reg.list()
+        listed = reg.list_tools()
         assert len(listed) == 1
         assert listed[0] == ("dummy", "A dummy tool for testing.")
 

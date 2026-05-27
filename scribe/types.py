@@ -10,8 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Any
-
+from typing import Any
 
 # ── IDs ──
 
@@ -29,6 +28,7 @@ def new_session_id() -> SessionId:
 
 class Role(str, Enum):
     """Message role enumeration."""
+
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
@@ -38,16 +38,17 @@ class Role(str, Enum):
 @dataclass
 class Message:
     """A chat message with role and content."""
+
     role: Role
     content: str
-    name: Optional[str] = None
-    tool_call_id: Optional[str] = None
-    tool_calls: Optional[list[ToolCall]] = None
-    timestamp: Optional[datetime] = None
+    name: str | None = None
+    tool_call_id: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    timestamp: datetime | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary, skipping None values."""
-        result = {"role": self.role.value, "content": self.content}
+        result: dict[str, Any] = {"role": self.role.value, "content": self.content}
         if self.name is not None:
             result["name"] = self.name
         if self.tool_call_id is not None:
@@ -71,13 +72,20 @@ class Message:
         timestamp = None
         if "timestamp" in data and data["timestamp"]:
             timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
-        return cls(role=role, content=content, name=name, tool_call_id=tool_call_id,
-                   tool_calls=tool_calls, timestamp=timestamp)
+        return cls(
+            role=role,
+            content=content,
+            name=name,
+            tool_call_id=tool_call_id,
+            tool_calls=tool_calls,
+            timestamp=timestamp,
+        )
 
 
 @dataclass
 class ToolCall:
     """A tool call with id, type, and function details."""
+
     id: str
     call_type: str
     function: FunctionCall
@@ -101,6 +109,7 @@ class ToolCall:
 @dataclass
 class FunctionCall:
     """A function call with name and arguments."""
+
     name: str
     arguments: str
 
@@ -118,11 +127,12 @@ class FunctionCall:
 @dataclass
 class ChatRequest:
     """LLM chat request."""
+
     model: str
     messages: list[Message]
-    tools: Optional[list[ToolDefinition]] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
+    tools: list[ToolDefinition] | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
     stream: bool = False
 
     def to_dict(self) -> dict:
@@ -143,6 +153,7 @@ class ChatRequest:
 @dataclass
 class ToolDefinition:
     """Tool definition for LLM function calling."""
+
     tool_type: str
     function: FunctionDefinition
 
@@ -153,6 +164,7 @@ class ToolDefinition:
 @dataclass
 class FunctionDefinition:
     """Function definition with name, description, and parameters."""
+
     name: str
     description: str
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -168,6 +180,7 @@ class FunctionDefinition:
 @dataclass
 class Usage:
     """Token usage statistics."""
+
     prompt_tokens: int = 0
     completion_tokens: int = 0
 
@@ -175,16 +188,18 @@ class Usage:
 @dataclass
 class ChatResponse:
     """LLM chat response."""
-    content: Optional[str]
-    tool_calls: Optional[list[ToolCall]] = None
+
+    content: str | None
+    tool_calls: list[ToolCall] | None = None
     usage: Usage = field(default_factory=Usage)
 
 
 @dataclass
 class StreamChunk:
     """A streaming response chunk."""
+
     delta: str
-    tool_calls: Optional[list[ToolCall]] = None
+    tool_calls: list[ToolCall] | None = None
     done: bool = False
 
 
@@ -194,15 +209,16 @@ class StreamChunk:
 @dataclass
 class MemoryEvent:
     """An episodic memory event from a conversation."""
+
     id: int
     session_id: SessionId
     role: Role
     content: str
     timestamp: datetime
     tags: list[str] = field(default_factory=list)
-    tool_call_id: Optional[str] = None
-    tool_calls: Optional[list[ToolCall]] = None
-    tool_name: Optional[str] = None
+    tool_call_id: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_name: str | None = None
 
     def to_dict(self) -> dict:
         result = {
@@ -244,6 +260,7 @@ class MemoryEvent:
 @dataclass
 class Entity:
     """A named entity in the semantic store."""
+
     id: int
     name: str
     entity_type: str
@@ -253,6 +270,7 @@ class Entity:
 @dataclass
 class Relation:
     """A relation between two entities."""
+
     id: int
     subject_id: int
     predicate: str
@@ -264,6 +282,7 @@ class Relation:
 
 class Tone(str, Enum):
     """Writing tone enumeration."""
+
     FORMAL = "formal"
     CASUAL = "casual"
     ACADEMIC = "academic"
@@ -271,12 +290,14 @@ class Tone(str, Enum):
 
 class EllipsisStyle(str, Enum):
     """Ellipsis style enumeration."""
+
     THREE_DOTS = "threedots"
     UNICODE_ELLIPSIS = "unicodeellipsis"
 
 
 class QuoteStyle(str, Enum):
     """Quote style enumeration."""
+
     DOUBLE = "double"
     SINGLE = "single"
     CHINESE = "chinese"
@@ -285,6 +306,7 @@ class QuoteStyle(str, Enum):
 @dataclass
 class PunctuationStyle:
     """Punctuation style preferences."""
+
     use_oxford_comma: bool = False
     ellipsis_style: EllipsisStyle = EllipsisStyle.THREE_DOTS
     quote_style: QuoteStyle = QuoteStyle.DOUBLE
@@ -293,6 +315,7 @@ class PunctuationStyle:
 @dataclass
 class StyleProfile:
     """A user's writing style profile."""
+
     tone: Tone = Tone.CASUAL
     avg_sentence_length: float = 20.0
     preferred_structures: list[str] = field(default_factory=list)
@@ -308,6 +331,7 @@ class StyleProfile:
 @dataclass
 class ToolResult:
     """Result of a tool execution."""
+
     content: str
     is_error: bool = False
 
@@ -318,6 +342,7 @@ class ToolResult:
 @dataclass
 class SessionInfo:
     """Information about a session."""
+
     id: SessionId
     title: str
     created_at: datetime
@@ -338,8 +363,12 @@ class SessionInfo:
         return cls(
             id=data["id"],
             title=data["title"],
-            created_at=datetime.fromisoformat(data["created_at"].replace("Z", "+00:00")),
-            updated_at=datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00")),
+            created_at=datetime.fromisoformat(
+                data["created_at"].replace("Z", "+00:00")
+            ),
+            updated_at=datetime.fromisoformat(
+                data["updated_at"].replace("Z", "+00:00")
+            ),
             message_count=data.get("message_count", 0),
         )
 
@@ -349,6 +378,7 @@ class SessionInfo:
 
 class ConsciousnessMode(str, Enum):
     """Consciousness mode for persona."""
+
     NONE = "none"
     MOOD = "mood"
     REFLECT = "reflect"
@@ -357,16 +387,18 @@ class ConsciousnessMode(str, Enum):
 @dataclass
 class PersonaConfig:
     """Persona configuration loaded from markdown files."""
+
     identity: str
     ishiki: str
-    name: Optional[str] = None
-    yuan: Optional[str] = None
+    name: str | None = None
+    yuan: str | None = None
     consciousness_mode: ConsciousnessMode = ConsciousnessMode.NONE
 
 
 @dataclass
 class ConsciousnessBlock:
     """A block of consciousness sections."""
+
     mode: ConsciousnessMode
     sections: list[ConsciousnessSection]
 
@@ -374,6 +406,7 @@ class ConsciousnessBlock:
 @dataclass
 class ConsciousnessSection:
     """A named section with consciousness items."""
+
     name: str
     items: list[str]
 
@@ -384,6 +417,7 @@ class ConsciousnessSection:
 @dataclass
 class DensityRules:
     """Rules for content density (fun, hooks, suspense)."""
+
     fun_per_chars: int = 300
     hook_per_chars: int = 500
     suspense_per_chars: int = 1500
@@ -392,6 +426,7 @@ class DensityRules:
 @dataclass
 class ParagraphRules:
     """Rules for paragraph structure."""
+
     min_narrative_chars: int = 40
     target_min_chars: int = 40
     target_max_chars: int = 120
@@ -402,6 +437,7 @@ class ParagraphRules:
 @dataclass
 class WritingMethodologyConfig:
     """Configuration for writing methodology rules."""
+
     enabled: bool = False
     genre: str = "general"
     density_rules: DensityRules = field(default_factory=DensityRules)
@@ -412,6 +448,7 @@ class WritingMethodologyConfig:
 @dataclass
 class AuditIssue:
     """A single issue found during writing audit."""
+
     category: str
     severity: str
     location: str
@@ -421,6 +458,7 @@ class AuditIssue:
 @dataclass
 class HookHealthIssue:
     """A health issue with a hook."""
+
     hook_id: str
     issue: str
 
@@ -428,6 +466,7 @@ class HookHealthIssue:
 @dataclass
 class WritingAuditResult:
     """Result of a writing audit."""
+
     score: float
     issues: list[AuditIssue]
     hook_health: list[HookHealthIssue] = field(default_factory=list)
@@ -439,6 +478,7 @@ class WritingAuditResult:
 @dataclass
 class PalaceHit:
     """A single search result from MemPalace."""
+
     text: str
     wing: str
     room: str
@@ -449,6 +489,7 @@ class PalaceHit:
 @dataclass
 class PalaceStatus:
     """Palace overview."""
+
     wings: dict[str, list[str]]  # wing_name -> [room_names]
     total_drawers: int
 
@@ -458,6 +499,7 @@ class PalaceStatus:
 
 class HookStatus(str, Enum):
     """Hook status enumeration."""
+
     PLANTED = "planted"
     PRESSURED = "pressured"
     RESOLVED = "resolved"
@@ -467,17 +509,19 @@ class HookStatus(str, Enum):
 @dataclass
 class HookEntry:
     """A foreshadowing hook entry."""
+
     id: str
     description: str
     seed_chapter: int
     status: HookStatus
-    last_mention_chapter: Optional[int] = None
-    payoff_text: Optional[str] = None
+    last_mention_chapter: int | None = None
+    payoff_text: str | None = None
 
 
 @dataclass
 class HookLedger:
     """A ledger of all foreshadowing hooks."""
+
     hooks: list[HookEntry] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -501,14 +545,16 @@ class HookLedger:
         """Deserialize from dictionary."""
         hooks = []
         for h_data in data.get("hooks", []):
-            hooks.append(HookEntry(
-                id=h_data["id"],
-                description=h_data["description"],
-                seed_chapter=h_data["seed_chapter"],
-                status=HookStatus(h_data["status"]),
-                last_mention_chapter=h_data.get("last_mention_chapter"),
-                payoff_text=h_data.get("payoff_text"),
-            ))
+            hooks.append(
+                HookEntry(
+                    id=h_data["id"],
+                    description=h_data["description"],
+                    seed_chapter=h_data["seed_chapter"],
+                    status=HookStatus(h_data["status"]),
+                    last_mention_chapter=h_data.get("last_mention_chapter"),
+                    payoff_text=h_data.get("payoff_text"),
+                )
+            )
         return cls(hooks=hooks)
 
 
@@ -518,25 +564,28 @@ class HookLedger:
 @dataclass
 class ConfigUpdate:
     """Update request for ScribeState configuration."""
-    default_provider: Optional[str] = None
-    default_model: Optional[str] = None
-    api_keys: Optional[dict[str, str]] = None
-    base_urls: Optional[dict[str, str]] = None
-    models: Optional[dict[str, str]] = None
+
+    default_provider: str | None = None
+    default_model: str | None = None
+    api_keys: dict[str, str] | None = None
+    base_urls: dict[str, str] | None = None
+    models: dict[str, str] | None = None
 
 
 @dataclass
 class ProviderView:
     """View of a provider's configuration."""
+
     name: str
     api_key_env: str
-    base_url: Optional[str] = None
+    base_url: str | None = None
     has_api_key: bool = False
 
 
 @dataclass
 class ConfigView:
     """View of the current ScribeState configuration."""
+
     default_provider: str = "openai"
     default_model: str = "gpt-4o"
     data_dir: str = ""
@@ -550,10 +599,12 @@ class ConfigView:
 
 # ── Tests ──
 
+
 def _test_message_serialization():
     """Test Message serialization round-trip."""
     msg = Message(role=Role.USER, content="hello")
     import json
+
     json_str = json.dumps(msg.to_dict())
     deserialized = Message.from_dict(json.loads(json_str))
     assert deserialized.role == Role.USER

@@ -6,10 +6,10 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scribe.types import Message, PersonaConfig, Role, SessionId
 from scribe.agent.loop import AgentLoop
-from scribe.tools.registry import ToolRegistry
 from scribe.council.debate_state import WriterDebateState, WriterOpinion
+from scribe.tools.registry import ToolRegistry
+from scribe.types import Message, PersonaConfig, Role, SessionId
 
 if TYPE_CHECKING:
     from scribe.llm.base import LlmDriver
@@ -54,9 +54,15 @@ def load_writer_persona(writer_dir: Path) -> PersonaConfig:
 
     for section in body.split("\n## "):
         section_lower = section.lower()
-        if any(k in section_lower for k in ["身份卡", "核心心智模型", "人物时间线", "价值观"]):
+        if any(
+            k in section_lower
+            for k in ["身份卡", "核心心智模型", "人物时间线", "价值观"]
+        ):
             identity_sections.append("## " + section)
-        elif any(k in section_lower for k in ["表达dna", "决策启发式", "回答工作流", "角色扮演"]):
+        elif any(
+            k in section_lower
+            for k in ["表达dna", "决策启发式", "回答工作流", "角色扮演"]
+        ):
             ishiki_sections.append("## " + section)
         else:
             identity_sections.append("## " + section)
@@ -125,12 +131,15 @@ class WriterAgent:
         # 自己的历史发言
         my_history = state.per_writer_history.get(self.writer_id, [])
         if my_history:
-            history_text = "\n".join(f"- 第{i+1}轮: {h}" for i, h in enumerate(my_history))
+            history_text = "\n".join(
+                f"- 第{i + 1}轮: {h}" for i, h in enumerate(my_history)
+            )
             parts.append(f"\n## 你之前的发言\n{history_text}")
 
         # 其他作家的最新发言
         other_opinions = [
-            op for op in state.history
+            op
+            for op in state.history
             if op.writer_id != self.writer_id and op.round == state.rounds - 1
         ]
         if other_opinions:
@@ -141,7 +150,9 @@ class WriterAgent:
 
         # 当前轮次指令
         parts.append(f"\n## 当前：第{state.rounds}轮（共{state.max_rounds}轮）")
-        parts.append("\n请从你的专业视角出发，对讨论主题发表看法。可以赞同、反对或补充其他作家的观点。保持你的个人风格。")
+        parts.append(
+            "\n请从你的专业视角出发，对讨论主题发表看法。可以赞同、反对或补充其他作家的观点。保持你的个人风格。"
+        )
 
         return "\n".join(parts)
 
@@ -150,8 +161,12 @@ class WriterAgent:
         content_lower = content
         if any(w in content_lower for w in ["同意", "赞同", "说得对", "很好", "认可"]):
             return "support"
-        if any(w in content_lower for w in ["反对", "不行", "不同意", "不认可", "问题"]):
+        if any(
+            w in content_lower for w in ["反对", "不行", "不同意", "不认可", "问题"]
+        ):
             return "oppose"
-        if any(w in content_lower for w in ["建议", "试试", "可以考虑", "不妨", "推荐"]):
+        if any(
+            w in content_lower for w in ["建议", "试试", "可以考虑", "不妨", "推荐"]
+        ):
             return "suggest"
         return "neutral"

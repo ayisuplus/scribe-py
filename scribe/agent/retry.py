@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import Callable, TypeVar, Generic
-
+from collections.abc import Callable
 from dataclasses import dataclass
-
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -17,6 +16,7 @@ T = TypeVar("T")
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior."""
+
     max_retries: int = 3
     initial_delay_ms: int = 1000
     max_delay_ms: int = 30000
@@ -24,7 +24,7 @@ class RetryConfig:
 
     def calculate_delay(self, attempt: int) -> float:
         """Calculate delay for a given attempt with jitter (±10%)."""
-        base = self.initial_delay_ms * (self.backoff_multiplier ** attempt)
+        base = self.initial_delay_ms * (self.backoff_multiplier**attempt)
         capped = min(base, self.max_delay_ms)
         jitter = capped * 0.1 * (1.0 - random.random() * 2.0)
         return (capped + jitter) / 1000.0  # seconds
@@ -32,6 +32,7 @@ class RetryConfig:
 
 class RetryableError:
     """Error categorization."""
+
     TRANSIENT = "transient"
     BUSINESS_LOGIC = "business_logic"
     UNKNOWN = "unknown"
@@ -43,11 +44,25 @@ def _classify_error(message: str) -> str:
 
     # Transient errors
     transient_keywords = [
-        "timeout", "timed out", "deadline exceeded",
-        "connection", "network", "dns", "refused", "reset",
-        "broken pipe", "econnrefused", "econnreset", "enetunreach",
-        "etimedout", "too many requests", "rate limit",
-        "429", "503", "502", "unavailable",
+        "timeout",
+        "timed out",
+        "deadline exceeded",
+        "connection",
+        "network",
+        "dns",
+        "refused",
+        "reset",
+        "broken pipe",
+        "econnrefused",
+        "econnreset",
+        "enetunreach",
+        "etimedout",
+        "too many requests",
+        "rate limit",
+        "429",
+        "503",
+        "502",
+        "unavailable",
     ]
     for kw in transient_keywords:
         if kw in msg:
@@ -55,8 +70,11 @@ def _classify_error(message: str) -> str:
 
     # Business logic errors
     business_keywords = [
-        "unknown tool", "invalid parameters",
-        "permission denied", "unauthorized", "forbidden",
+        "unknown tool",
+        "invalid parameters",
+        "permission denied",
+        "unauthorized",
+        "forbidden",
     ]
     for kw in business_keywords:
         if kw in msg:
@@ -67,6 +85,7 @@ def _classify_error(message: str) -> str:
 
 class RetryError(Exception):
     """Errors during retry operations."""
+
     def __init__(self, message: str, error_type: str):
         super().__init__(message)
         self.error_type = error_type
@@ -82,7 +101,7 @@ class RetryManager:
 
     async def execute(
         self,
-        operation: Callable[[], "asyncio.Future[Result[T]]"],
+        operation: Callable[[], asyncio.Future[Result[T]]],
     ) -> T:
         """
         Execute an async operation with retry logic.
@@ -123,7 +142,7 @@ class RetryManager:
     async def execute_with_timeout(
         self,
         timeout: float,
-        operation: Callable[[], "asyncio.Future[Result[T]]"],
+        operation: Callable[[], asyncio.Future[Result[T]]],
     ) -> T:
         """
         Execute with timeout. Timeout counts as a transient error.
@@ -148,7 +167,7 @@ class RetryManager:
                     raise RetryError(error_msg, RetryableError.BUSINESS_LOGIC)
 
                 last_error = error_msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = f"Operation timed out after {timeout}s"
             except RetryError as e:
                 if e.error_type == RetryableError.BUSINESS_LOGIC:
@@ -169,18 +188,18 @@ class RetryManager:
 class Result(Generic[T]):
     __slots__ = ("_ok", "_err", "_ok_val", "_err_val")
 
-    def __init__(self, ok_val=None, err_val=None):
+    def __init__(self, ok_val: T | None = None, err_val: str | None = None):
         self._ok = err_val is None
         self._err = err_val is not None
         self._ok_val = ok_val
         self._err_val = err_val
 
     @classmethod
-    def ok(cls, value: T) -> "Result[T]":
+    def ok(cls, value: T) -> Result[T]:
         return cls(ok_val=value)
 
     @classmethod
-    def err(cls, value: str) -> "Result[T]":
+    def err(cls, value: str) -> Result[T]:
         return cls(err_val=value)
 
     @property

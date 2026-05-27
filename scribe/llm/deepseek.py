@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Optional
 
-from scribe.llm.openai import _chat_with_retry, _stream_chat_openai
+import httpx
+
 from scribe.llm.base import LlmDriver
+from scribe.llm.openai import _chat_with_retry, _stream_chat_openai
 from scribe.types import ChatRequest, ChatResponse
 
 
@@ -30,12 +31,13 @@ class DeepSeekDriver(LlmDriver):
             "DEEPSEEK_BASE_URL", "https://api.deepseek.com/chat"
         )
         self._model = model
-        self._client = None  # lazily initialized
+        self._client: httpx.AsyncClient | None = None  # lazily initialized
 
     @property
     def _httpx_client(self):
         if self._client is None:
             import httpx
+
             self._client = httpx.AsyncClient(timeout=httpx.Timeout(30.0))
         return self._client
 
@@ -46,7 +48,7 @@ class DeepSeekDriver(LlmDriver):
         )
 
     async def stream_chat(
-        self, req: ChatRequest, queue: Optional[asyncio.Queue[str]] = None
+        self, req: ChatRequest, queue: asyncio.Queue[str] | None = None
     ) -> None:
         model = req.model or self._model
         if queue is None:

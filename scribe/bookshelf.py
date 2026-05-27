@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Book:
     """A single book/project on the bookshelf."""
+
     name: str
     description: str = ""
     genre: str = "general"  # fiction, non-fiction, script, essay
@@ -33,7 +34,7 @@ class Book:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Book":
+    def from_dict(cls, d: dict) -> Book:
         return cls(
             name=d["name"],
             description=d.get("description", ""),
@@ -129,7 +130,7 @@ class Bookshelf:
         if book_dir.exists():
             raise ValueError(f"Book already exists: {name}")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         book = Book(
             name=name,
             description=description,
@@ -165,6 +166,7 @@ class Bookshelf:
     def delete(self, name: str) -> None:
         """Delete a book and all its data."""
         import shutil
+
         book_dir = self._books_dir / name
         if not book_dir.exists():
             raise ValueError(f"Book not found: {name}")
@@ -202,13 +204,14 @@ class Bookshelf:
             return None
         try:
             data = json.loads(self._shelf_file.read_text(encoding="utf-8"))
-            return data.get("active")
+            active = data.get("active")
+            return str(active) if active is not None else None
         except Exception:
             return None
 
     def _save_active_name(self, name: str | None) -> None:
         """Save the active book name to bookshelf.json."""
-        data = {"active": name, "updated": datetime.now(timezone.utc).isoformat()}
+        data = {"active": name, "updated": datetime.now(UTC).isoformat()}
         self._shelf_file.write_text(
             json.dumps(data, indent=2, ensure_ascii=False),
             encoding="utf-8",

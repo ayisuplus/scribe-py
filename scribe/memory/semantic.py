@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Optional
 
 from scribe.types import Entity, Relation
 
@@ -17,9 +16,10 @@ from scribe.types import Entity, Relation
 class SemanticStore:
     """
     Stores entities and relations in a knowledge graph.
-    
+
     Uses JSON file backend for persistence.
     """
+
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self._lock = asyncio.Lock()
@@ -72,7 +72,7 @@ class SemanticStore:
     async def _save_to_disk(self) -> None:
         """Save entities and relations to disk."""
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         entities_data = [
             {
                 "id": e.id,
@@ -83,10 +83,9 @@ class SemanticStore:
             for e in self._entities.values()
         ]
         self._entities_file.write_text(
-            json.dumps(entities_data, indent=2, ensure_ascii=False),
-            encoding="utf-8"
+            json.dumps(entities_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-        
+
         relations_data = [
             {
                 "id": r.id,
@@ -97,15 +96,14 @@ class SemanticStore:
             for r in self._relations.values()
         ]
         self._relations_file.write_text(
-            json.dumps(relations_data, indent=2, ensure_ascii=False),
-            encoding="utf-8"
+            json.dumps(relations_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 
     async def add_entity(
         self,
         name: str,
         entity_type: str,
-        properties: Optional[dict] = None,
+        properties: dict | None = None,
     ) -> int:
         """
         Add a new entity and return its ID.
@@ -113,7 +111,7 @@ class SemanticStore:
         async with self._lock:
             entity_id = self._next_entity_id
             self._next_entity_id += 1
-            
+
             entity = Entity(
                 id=entity_id,
                 name=name,
@@ -136,7 +134,7 @@ class SemanticStore:
         async with self._lock:
             relation_id = self._next_relation_id
             self._next_relation_id += 1
-            
+
             relation = Relation(
                 id=relation_id,
                 subject_id=subject_id,
@@ -147,7 +145,7 @@ class SemanticStore:
             await self._save_to_disk()
             return relation_id
 
-    async def get_entity(self, entity_id: int) -> Optional[Entity]:
+    async def get_entity(self, entity_id: int) -> Entity | None:
         """Get an entity by ID."""
         return self._entities.get(entity_id)
 
@@ -156,20 +154,17 @@ class SemanticStore:
         Search entities by name (case-insensitive substring match).
         """
         query_lower = query.lower()
-        results = [
-            e for e in self._entities.values()
-            if query_lower in e.name.lower()
-        ]
+        results = [e for e in self._entities.values() if query_lower in e.name.lower()]
         return results[:limit]
 
     async def get_relations(self, entity_id: int) -> list[tuple[Relation, Entity]]:
         """
         Get all relations involving an entity.
-        
+
         Returns tuples of (Relation, RelatedEntity).
         """
         results: list[tuple[Relation, Entity]] = []
-        
+
         for relation in self._relations.values():
             if relation.subject_id == entity_id:
                 if relation.object_id in self._entities:
@@ -177,5 +172,5 @@ class SemanticStore:
             elif relation.object_id == entity_id:
                 if relation.subject_id in self._entities:
                     results.append((relation, self._entities[relation.subject_id]))
-        
+
         return results

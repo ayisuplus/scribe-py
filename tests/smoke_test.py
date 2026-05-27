@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # Ensure the package is on the path
 sys.path.insert(0, ".")
 
-from scribe.api.state import ScribeState, KernelConfig
+from scribe.api.state import ScribeState, ScribeConfig
 
 
 async def test_create_session():
@@ -72,12 +72,12 @@ async def test_send_message_mock_llm():
 
 
 async def test_kernel_config_defaults():
-    """Test KernelConfig has expected defaults."""
-    config = KernelConfig()
+    """Test ScribeConfig has expected defaults."""
+    config = ScribeConfig()
     assert config.default_provider == "openai"
     assert config.default_model == "gpt-4o"
     assert "file_read" in config.tools_enabled
-    print("[PASS] KernelConfig defaults correct")
+    print("[PASS] ScribeConfig defaults correct")
 
 
 async def main():

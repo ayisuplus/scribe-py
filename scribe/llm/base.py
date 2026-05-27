@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
@@ -29,7 +29,7 @@ class LlmDriver(ABC):
         ...
 
     async def stream_chat(
-        self, req: ChatRequest, queue: "Optional[asyncio.Queue[str]]" = None
+        self, req: ChatRequest, queue: asyncio.Queue[str] | None = None
     ) -> None:
         """
         Streaming chat — sends text deltas via the provided queue.
@@ -39,14 +39,15 @@ class LlmDriver(ABC):
         """
         response = await self.chat(req)
         content = response.content or ""
-        await queue.put(content)
+        if queue is not None:
+            await queue.put(content)
 
     # ── Lifecycle ──
 
     async def close(self) -> None:
         """Release resources (HTTP clients, connections). Override in subclasses."""
 
-    async def __aenter__(self) -> "LlmDriver":
+    async def __aenter__(self) -> LlmDriver:
         return self
 
     async def __aexit__(self, *exc: object) -> None:

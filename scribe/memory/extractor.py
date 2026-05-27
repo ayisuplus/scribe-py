@@ -12,7 +12,6 @@ import re
 from scribe.memory.semantic import SemanticStore
 from scribe.types import MemoryEvent
 
-
 # Pre-compiled regex patterns
 EN_PATTERN = re.compile(r"\b([A-Z][a-zA-Z]*[a-zA-Z]*)+\b")
 ACRONYM_PATTERN = re.compile(r"\b([A-Z]{2,}(?:\.[A-Z]{2,})?)\b")
@@ -23,22 +22,93 @@ DOMAIN_PATTERN = re.compile(
 
 # Common English words to filter out
 COMMON_WORDS: set[str] = {
-    "the", "this", "that", "these", "those", "there", "their", "they", 
-    "what", "when", "where", "which", "who", "how", "why", "and", "but", 
-    "for", "not", "are", "was", "were", "been", "being", "have", "has", 
-    "had", "does", "will", "would", "could", "should", "from", "with",
-    "each", "every", "some", "any", "all", "both", "you", "we", "he", 
-    "she", "it", "your", "our", "his", "her", "yes", "no", "just", "also", 
-    "like", "make", "made", "get", "got", "one", "two", "first", "hello", 
-    "hi", "okay", "ok", "thanks", "now", "then", "well", "see", "way",
-    "back", "say", "said", "take", "know", "come", "look", "want", "give",
+    "the",
+    "this",
+    "that",
+    "these",
+    "those",
+    "there",
+    "their",
+    "they",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "how",
+    "why",
+    "and",
+    "but",
+    "for",
+    "not",
+    "are",
+    "was",
+    "were",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "does",
+    "will",
+    "would",
+    "could",
+    "should",
+    "from",
+    "with",
+    "each",
+    "every",
+    "some",
+    "any",
+    "all",
+    "both",
+    "you",
+    "we",
+    "he",
+    "she",
+    "it",
+    "your",
+    "our",
+    "his",
+    "her",
+    "yes",
+    "no",
+    "just",
+    "also",
+    "like",
+    "make",
+    "made",
+    "get",
+    "got",
+    "one",
+    "two",
+    "first",
+    "hello",
+    "hi",
+    "okay",
+    "ok",
+    "thanks",
+    "now",
+    "then",
+    "well",
+    "see",
+    "way",
+    "back",
+    "say",
+    "said",
+    "take",
+    "know",
+    "come",
+    "look",
+    "want",
+    "give",
 }
 
 
 class EntityExtractor:
     """
     Extracts named entities from text using regex patterns.
-    
+
     Recognizes:
     - English names (capitalized words)
     - Acronyms (ALL CAPS)
@@ -54,23 +124,23 @@ class EntityExtractor:
     ) -> int:
         """
         Extract entities from a single event.
-        
+
         Args:
             semantic: The semantic store to add entities to
             event: The memory event to extract from
-            
+
         Returns:
             Number of entities added
         """
         candidates = EntityExtractor.find_entities(event.content)
         added = 0
-        
+
         for name, entity_type in candidates:
             existing = await semantic.search_entities(name, 1)
             if not existing:
                 await semantic.add_entity(name, entity_type, {})
                 added += 1
-        
+
         return added
 
     @staticmethod
@@ -80,11 +150,11 @@ class EntityExtractor:
     ) -> int:
         """
         Extract entities from multiple events.
-        
+
         Args:
             semantic: The semantic store to add entities to
             events: The memory events to extract from
-            
+
         Returns:
             Total number of entities added
         """
@@ -97,7 +167,7 @@ class EntityExtractor:
     def find_entities(text: str) -> list[tuple[str, str]]:
         """
         Find all named entities in text.
-        
+
         Returns:
             List of (name, entity_type) tuples
         """
@@ -108,7 +178,12 @@ class EntityExtractor:
         for match in EN_PATTERN.finditer(text):
             name = match.group(1)
             has_lower = any(c.islower() for c in name)
-            if has_lower and len(name) >= 3 and name not in COMMON_WORDS and name not in seen:
+            if (
+                has_lower
+                and len(name) >= 3
+                and name not in COMMON_WORDS
+                and name not in seen
+            ):
                 seen.add(name)
                 entity_type = _guess_entity_type(name)
                 entities.append((name, entity_type))
@@ -142,7 +217,7 @@ class EntityExtractor:
             ("省", "location"),
             ("国", "location"),
         ]
-        
+
         for suffix, entity_type in suffixes:
             # Build regex pattern for this suffix
             pattern = re.compile(rf"([\u4e00-\u9fff]{{2,6}}{re.escape(suffix)})")

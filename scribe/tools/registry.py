@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from scribe.tools.base import Tool
-from scribe.types import ToolDefinition, FunctionDefinition
-
+from scribe.types import FunctionDefinition, ToolDefinition
 
 
 class ToolRegistry:
@@ -19,17 +18,17 @@ class ToolRegistry:
     """
 
     def __init__(self) -> None:
-        self._tools: dict[str, "Tool"] = {}
+        self._tools: dict[str, Tool] = {}
 
-    def register(self, tool: "Tool") -> None:
+    def register(self, tool: Tool) -> None:
         """Register a tool instance."""
         self._tools[tool.name()] = tool
 
-    def get(self, name: str) -> "Tool | None":
+    def get(self, name: str) -> Tool | None:
         """Get a tool by name."""
         return self._tools.get(name)
 
-    def list(self) -> list[tuple[str, str]]:
+    def list_tools(self) -> list[tuple[str, str]]:
         """List all (name, description) pairs."""
         return [(t.name(), t.description()) for t in self._tools.values()]
 

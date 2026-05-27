@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Optional
+from typing import Any
 
 import httpx
 
@@ -28,11 +28,11 @@ MAX_RETRIES = 3
 RETRY_BASE_MS = 1000
 
 
-def _build_messages(messages: list[Message]) -> list[dict]:
+def _build_messages(messages: list[Message]) -> list[dict[str, Any]]:
     """Convert Message list to OpenAI-compatible format."""
     result = []
     for m in messages:
-        msg = {"role": m.role.value, "content": m.content}
+        msg: dict[str, Any] = {"role": m.role.value, "content": m.content}
         if m.name:
             msg["name"] = m.name
         if m.tool_call_id:
@@ -40,14 +40,16 @@ def _build_messages(messages: list[Message]) -> list[dict]:
         if m.tool_calls:
             calls = []
             for tc in m.tool_calls:
-                calls.append({
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    },
-                })
+                calls.append(
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                )
             msg["tool_calls"] = calls
         result.append(msg)
     return result
@@ -64,11 +66,14 @@ def _build_body(req: ChatRequest, model: str) -> dict:
     }
     if req.tools:
         body["tools"] = [
-            {"type": d.tool_type, "function": {
-                "name": d.function.name,
-                "description": d.function.description,
-                "parameters": d.function.parameters,
-            }}
+            {
+                "type": d.tool_type,
+                "function": {
+                    "name": d.function.name,
+                    "description": d.function.description,
+                    "parameters": d.function.parameters,
+                },
+            }
             for d in req.tools
         ]
     return body
@@ -95,14 +100,16 @@ def _parse_response(resp_json: dict) -> ChatResponse:
         calls = []
         for tc in raw_calls:
             if tc.get("function"):
-                calls.append(ToolCall(
-                    id=tc["id"],
-                    call_type=tc.get("type", "function"),
-                    function=FunctionCall(
-                        name=tc["function"]["name"],
-                        arguments=tc["function"]["arguments"],
-                    ),
-                ))
+                calls.append(
+                    ToolCall(
+                        id=tc["id"],
+                        call_type=tc.get("type", "function"),
+                        function=FunctionCall(
+                            name=tc["function"]["name"],
+                            arguments=tc["function"]["arguments"],
+                        ),
+                    )
+                )
         if calls:
             tool_calls = calls
 
@@ -129,9 +136,11 @@ async def _stream_chat_openai(
 
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    async with client.stream("POST", url, json=body, headers=headers, timeout=60.0) as resp:
+    async with client.stream(
+        "POST", url, json=body, headers=headers, timeout=60.0
+    ) as resp:
         if resp.status_code != 200:
-            text = await resp.text()
+            text = resp.text
             raise Exception(f"HTTP {resp.status_code}: {text}")
 
         # Track parallel tool calls by index
@@ -180,11 +189,13 @@ async def _stream_chat_openai(
         for idx in indices:
             id_val, name, args = tool_accum[idx]
             if name:
-                final_calls.append(ToolCall(
-                    id=id_val,
-                    call_type="function",
-                    function=FunctionCall(name=name, arguments=args),
-                ))
+                final_calls.append(
+                    ToolCall(
+                        id=id_val,
+                        call_type="function",
+                        function=FunctionCall(name=name, arguments=args),
+                    )
+                )
 
 
 async def _chat_with_retry(
@@ -204,8 +215,7 @@ async def _chat_with_retry(
         if attempt > 0:
             delay_ms = RETRY_BASE_MS * (2 ** (attempt - 1))
             logger.warning(
-                "OpenAI retry attempt %d/%d after %d ms",
-                attempt, MAX_RETRIES, delay_ms
+                "OpenAI retry attempt %d/%d after %d ms", attempt, MAX_RETRIES, delay_ms
             )
             await asyncio.sleep(delay_ms / 1000.0)
 
@@ -234,7 +244,7 @@ async def _chat_with_retry(
             err_json = resp.json()
             msg = err_json.get("error", {}).get("message", "Unknown error")
         except Exception:
-            msg = resp.text()[:200]
+            msg = resp.text[:200]
         raise Exception(f"HTTP {status}: {msg}")
 
     raise last_err or Exception("Max retries exceeded")
@@ -267,7 +277,7 @@ class OpenAiDriver(LlmDriver):
         )
 
     async def stream_chat(
-        self, req: ChatRequest, queue: Optional[asyncio.Queue[str]] = None
+        self, req: ChatRequest, queue: asyncio.Queue[str] | None = None
     ) -> None:
         model = req.model or self._model
         if queue is None:

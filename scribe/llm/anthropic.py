@@ -8,7 +8,6 @@ import asyncio
 import json
 import logging
 import os
-from typing import Optional
 
 import httpx
 
@@ -44,10 +43,12 @@ def _build_messages(req: ChatRequest) -> tuple[list[dict], list[dict] | None]:
 
     for m in req.messages:
         if m.role == Role.SYSTEM:
-            system_blocks.append({
-                "type": "text",
-                "text": m.content,
-            })
+            system_blocks.append(
+                {
+                    "type": "text",
+                    "text": m.content,
+                }
+            )
         else:
             role_str = _role_str(m.role)
             msg: dict = {"role": role_str, "content": m.content}
@@ -57,20 +58,24 @@ def _build_messages(req: ChatRequest) -> tuple[list[dict], list[dict] | None]:
                 if m.content:
                     blocks.append({"type": "text", "text": m.content})
                 for tc in m.tool_calls:
-                    blocks.append({
-                        "type": "tool_use",
-                        "id": tc.id,
-                        "name": tc.function.name,
-                        "input": json.loads(tc.function.arguments or "{}"),
-                    })
+                    blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": tc.id,
+                            "name": tc.function.name,
+                            "input": json.loads(tc.function.arguments or "{}"),
+                        }
+                    )
                 msg["content"] = blocks
 
             if m.tool_call_id:
-                msg["content"] = [{
-                    "type": "tool_result",
-                    "tool_use_id": m.tool_call_id,
-                    "content": m.content,
-                }]
+                msg["content"] = [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": m.tool_call_id,
+                        "content": m.content,
+                    }
+                ]
 
             conv_messages.append(msg)
 
@@ -155,9 +160,11 @@ async def _stream_anthropic(
     if tools:
         body["tools"] = tools
 
-    async with client.stream("POST", url, json=body, headers=headers, timeout=60.0) as resp:
+    async with client.stream(
+        "POST", url, json=body, headers=headers, timeout=60.0
+    ) as resp:
         if resp.status_code != 200:
-            text = await resp.text()
+            text = resp.text
             raise Exception(f"HTTP {resp.status_code}: {text}")
 
         tool_accum: dict[str, tuple[str, str]] = {}
@@ -211,11 +218,13 @@ async def _stream_anthropic(
                 final_calls = []
                 for bid, (name, args) in tool_accum.items():
                     if name:
-                        final_calls.append(ToolCall(
-                            id=bid,
-                            call_type="function",
-                            function=FunctionCall(name=name, arguments=args),
-                        ))
+                        final_calls.append(
+                            ToolCall(
+                                id=bid,
+                                call_type="function",
+                                function=FunctionCall(name=name, arguments=args),
+                            )
+                        )
 
 
 class AnthropicDriver(LlmDriver):
@@ -262,9 +271,12 @@ class AnthropicDriver(LlmDriver):
         last_err: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
             if attempt > 0:
-                delay = (2 ** (attempt - 1))
+                delay = 2 ** (attempt - 1)
                 logger.warning(
-                    "Anthropic retry attempt %d/%d after %ds", attempt, MAX_RETRIES, delay
+                    "Anthropic retry attempt %d/%d after %ds",
+                    attempt,
+                    MAX_RETRIES,
+                    delay,
                 )
                 await asyncio.sleep(delay)
 
@@ -285,7 +297,9 @@ class AnthropicDriver(LlmDriver):
                 pass
 
             if resp.status_code in (429, 500, 502, 503) and attempt < MAX_RETRIES:
-                logger.warning("Anthropic HTTP %d: %s (will retry)", resp.status_code, msg)
+                logger.warning(
+                    "Anthropic HTTP %d: %s (will retry)", resp.status_code, msg
+                )
                 last_err = Exception(msg)
                 continue
 
@@ -294,7 +308,7 @@ class AnthropicDriver(LlmDriver):
         raise last_err or Exception("Max retries exceeded")
 
     async def stream_chat(
-        self, req: ChatRequest, queue: Optional[asyncio.Queue[str]] = None
+        self, req: ChatRequest, queue: asyncio.Queue[str] | None = None
     ) -> None:
         model = req.model or self._model
         system_blocks, messages = _build_messages(req)
@@ -306,7 +320,7 @@ class AnthropicDriver(LlmDriver):
             self._client,
             self._api_key,
             system_blocks,
-            messages,
+            messages or [],
             tools,
             model,
             max_tokens,

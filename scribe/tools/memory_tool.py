@@ -8,10 +8,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from scribe.tools.base import ToolContext
     from scribe.memory.episodic import EpisodicStore
-    from scribe.memory.semantic import SemanticStore
     from scribe.memory.procedural import ProceduralStore
+    from scribe.memory.semantic import SemanticStore
+    from scribe.tools.base import ToolContext
 
 from scribe.tools.base import Tool
 from scribe.types import ToolResult
@@ -24,9 +24,9 @@ class MemorySearchTool(Tool):
 
     def __init__(
         self,
-        episodic: "EpisodicStore | None" = None,
-        semantic: "SemanticStore | None" = None,
-        procedural: "ProceduralStore | None" = None,
+        episodic: EpisodicStore | None = None,
+        semantic: SemanticStore | None = None,
+        procedural: ProceduralStore | None = None,
     ):
         self._episodic = episodic
         self._semantic = semantic
@@ -41,13 +41,11 @@ class MemorySearchTool(Tool):
     def parameters(self) -> dict:
         return {
             "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"}
-            },
+            "properties": {"query": {"type": "string", "description": "Search query"}},
             "required": ["query"],
         }
 
-    async def execute(self, params: dict, ctx: "ToolContext") -> ToolResult:
+    async def execute(self, params: dict, ctx: ToolContext) -> ToolResult:
         query = params.get("query")
         if not query:
             return ToolResult(content="Missing 'query' parameter", is_error=True)

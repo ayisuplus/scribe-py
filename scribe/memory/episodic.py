@@ -18,9 +18,10 @@ from scribe.types import MemoryEvent, SessionId
 class EpisodicStore:
     """
     Stores conversation events with JSON file backend.
-    
+
     Events are stored in a single JSON file per session.
     """
+
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self._lock = asyncio.Lock()
@@ -53,18 +54,18 @@ class EpisodicStore:
     async def record_event(self, event: MemoryEvent) -> int:
         """
         Record a new event and return its assigned ID.
-        
+
         The event's session_id is used to organize storage.
         """
         async with self._lock:
             events = await self._load_events(event.session_id)
-            
+
             # Assign ID if not set
             if event.id == 0:
                 next_id = self._next_id.get(event.session_id, 1)
                 event.id = next_id
                 self._next_id[event.session_id] = next_id + 1
-            
+
             events.append(event)
             await self._save_events(event.session_id, events)
             return event.id
@@ -72,15 +73,15 @@ class EpisodicStore:
     async def search_by_content(self, query: str, limit: int = 10) -> list[MemoryEvent]:
         """
         Search events by content substring.
-        
+
         Returns events matching the query, sorted by most recent.
         """
         query_lower = query.lower()
         results: list[tuple[datetime, MemoryEvent]] = []
-        
+
         if not self.data_dir.exists():
             return []
-        
+
         for path in self.data_dir.glob("episodic_*.json"):
             try:
                 content = path.read_text(encoding="utf-8")
@@ -90,7 +91,7 @@ class EpisodicStore:
                         results.append((event.timestamp, event))
             except Exception:
                 continue
-        
+
         results.sort(key=lambda x: x[0], reverse=True)
         return [event for _, event in results[:limit]]
 

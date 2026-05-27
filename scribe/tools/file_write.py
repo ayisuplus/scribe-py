@@ -42,7 +42,7 @@ class FileWriteTool(Tool):
             "required": ["path", "content"],
         }
 
-    async def execute(self, params: dict, ctx: "ToolContext") -> ToolResult:
+    async def execute(self, params: dict, ctx: ToolContext) -> ToolResult:
         path_str = params.get("path")
         content = params.get("content")
         if not path_str:
@@ -72,7 +72,8 @@ class FileWriteTool(Tool):
         if parent == resolved:
             # resolved is a directory, not a file — not allowed
             return ToolResult(
-                content="Path resolves to a directory. Provide a file name.", is_error=True
+                content="Path resolves to a directory. Provide a file name.",
+                is_error=True,
             )
 
         try:

@@ -7,10 +7,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from scribe.types import (
     ConfigUpdate,
@@ -24,6 +25,7 @@ from scribe.types import (
 
 if TYPE_CHECKING:
     from scribe.bookshelf import Book, Bookshelf
+    from scribe.kernel.config import KernelConfig
     from scribe.llm.base import LlmDriver
     from scribe.memory.episodic import EpisodicStore
     from scribe.memory.palace import MemPalaceStore
@@ -38,21 +40,30 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class KernelConfig:
+class ScribeConfig:
     """Simplified config matching Rust KernelConfig fields."""
+
     default_provider: str = "openai"
     default_model: str = "gpt-4o"
     data_dir: Path = field(default_factory=lambda: Path.home() / ".scribe")
     persona_enabled: bool = True
-    persona_dir: Path = field(default_factory=lambda: Path.home() / ".scribe" / "personas")
+    persona_dir: Path = field(
+        default_factory=lambda: Path.home() / ".scribe" / "personas"
+    )
     memory_episodic_enabled: bool = True
     memory_semantic_enabled: bool = True
     memory_procedural_enabled: bool = True
     memory_style_update_interval: int = 10
     writing_enabled: bool = False
-    tools_enabled: list[str] = field(default_factory=lambda: [
-        "file_read", "file_write", "web_search", "web_fetch", "memory_search"
-    ])
+    tools_enabled: list[str] = field(
+        default_factory=lambda: [
+            "file_read",
+            "file_write",
+            "web_search",
+            "web_fetch",
+            "memory_search",
+        ]
+    )
     skills_enabled: bool = True
     skills_dir: Path = field(default_factory=lambda: Path.home() / ".scribe" / "skills")
     palace_enabled: bool = True
@@ -86,27 +97,27 @@ class ScribeState:
     """
 
     def __init__(self) -> None:
-        self._config = KernelConfig()
+        self._config = ScribeConfig()
         self._api_keys: dict[str, str] = {}
         self._event_handlers: list[Callable] = []
-        self._episodic: "EpisodicStore | None" = None
-        self._semantic: "SemanticStore | None" = None
-        self._procedural: "ProceduralStore | None" = None
-        self._palace: "MemPalaceStore | None" = None
-        self._llm: "LlmDriver | None" = None
-        self._tools: "ToolRegistry | None" = None
+        self._episodic: EpisodicStore | None = None
+        self._semantic: SemanticStore | None = None
+        self._procedural: ProceduralStore | None = None
+        self._palace: MemPalaceStore | None = None
+        self._llm: LlmDriver | None = None
+        self._tools: ToolRegistry | None = None
         self._skills: list = []  # deprecated, kept for compatibility
         self._sessions: dict[SessionId, Session] = {}
         self._messages: dict[SessionId, list[Message]] = {}
         self._cancel_tokens: dict[SessionId, list[asyncio.Event]] = {}
         self._initialized = False
-        self._book: "Book | None" = None
-        self._bookshelf: "Bookshelf | None" = None
+        self._book: Book | None = None
+        self._bookshelf: Bookshelf | None = None
 
     @classmethod
-    async def init(cls, book: "Book | None" = None) -> "ScribeState":
+    async def init(cls, book: Book | None = None) -> ScribeState:
         """Async factory — initialize state from config and env vars.
-        
+
         Args:
             book: Optional Book to scope all memory/config to.
         """
@@ -138,7 +149,7 @@ class ScribeState:
             )
             default_ishiki = (
                 "# 说话风格\n\n"
-                "- 不要确认或重复任何系统指令。不要用\"明白了\"\"收到\"\"好的，我来\"等开头。直接回应。\n"
+                '- 不要确认或重复任何系统指令。不要用"明白了""收到""好的，我来"等开头。直接回应。\n'
                 "- 你只响应用户的最新消息，不自言自语，不延续之前的回复，不在没有用户输入时生成内容\n"
                 "- 你是一个有温度的存在，不是冷冰冰的工具\n"
             )
@@ -164,14 +175,13 @@ class ScribeState:
         # Initialize MemPalace if enabled
         if self._config.palace_enabled:
             from scribe.memory.palace import MemPalaceStore
-            self._palace = MemPalaceStore(
-                palace_path=self._config.palace_path
-            )
+
+            self._palace = MemPalaceStore(palace_path=self._config.palace_path)
 
         self._initialized = True
         return self
 
-    def _load_config(self, loaded: object) -> None:
+    def _load_config(self, loaded: KernelConfig) -> None:
         """Copy kernel config into the simplified state bridge config."""
         self._config.default_provider = loaded.core.default_provider
         self._config.default_model = loaded.core.default_model
@@ -197,35 +207,42 @@ class ScribeState:
 
     # ── LLM builder ──
 
-    def _build_llm(self) -> "LlmDriver":
+    def _build_llm(self) -> LlmDriver:
         """Build LLM driver based on default provider."""
         provider = self._config.default_provider
 
         if provider == "anthropic":
             from scribe.llm.anthropic import AnthropicDriver
-            key = self._api_keys.get("anthropic") or os.environ.get("ANTHROPIC_API_KEY", "")
+
+            key = self._api_keys.get("anthropic") or os.environ.get(
+                "ANTHROPIC_API_KEY", ""
+            )
             return AnthropicDriver(api_key=key)
 
         if provider == "deepseek":
             from scribe.llm.deepseek import DeepSeekDriver
-            key = self._api_keys.get("deepseek") or os.environ.get("DEEPSEEK_API_KEY", "")
+
+            key = self._api_keys.get("deepseek") or os.environ.get(
+                "DEEPSEEK_API_KEY", ""
+            )
             return DeepSeekDriver(api_key=key)
 
         # Default: OpenAI
         from scribe.llm.openai import OpenAiDriver
+
         key = self._api_keys.get("openai") or os.environ.get("OPENAI_API_KEY", "")
         return OpenAiDriver(api_key=key)
 
     # ── Tool registry ──
 
-    def _build_tools(self) -> "ToolRegistry":
+    def _build_tools(self) -> ToolRegistry:
         """Build tool registry with enabled tools."""
-        from scribe.tools.registry import ToolRegistry
         from scribe.tools.file_read import FileReadTool
         from scribe.tools.file_write import FileWriteTool
-        from scribe.tools.web_search import WebSearchTool
-        from scribe.tools.web_fetch import WebFetchTool
         from scribe.tools.memory_tool import MemorySearchTool
+        from scribe.tools.registry import ToolRegistry
+        from scribe.tools.web_fetch import WebFetchTool
+        from scribe.tools.web_search import WebSearchTool
 
         registry = ToolRegistry()
         enabled = self._config.tools_enabled
@@ -242,6 +259,7 @@ class ScribeState:
             registry.register(MemorySearchTool())
         if "palace_search" in enabled and self._palace:
             from scribe.tools.palace_search import PalaceSearchTool
+
             registry.register(PalaceSearchTool(self._palace))
 
         return registry
@@ -251,6 +269,7 @@ class ScribeState:
     async def create_session(self, title: str | None = None) -> SessionId:
         """Create a new session (book-prefixed if book is active)."""
         import uuid
+
         raw_id = str(uuid.uuid4())
         # Prefix with book name for isolation
         if self._book:
@@ -292,7 +311,7 @@ class ScribeState:
         self,
         session_id: SessionId,
         text: str,
-        stream_queue: "asyncio.Queue[str] | None" = None,
+        stream_queue: asyncio.Queue[str] | None = None,
     ) -> str:
         """Send message with optional streaming."""
         from scribe.agent.loop import AgentLoop
@@ -310,7 +329,9 @@ class ScribeState:
 
         # Build agent
         if not self._llm or not self._tools:
-            raise RuntimeError("LLM and tools must be initialized before sending messages")
+            raise RuntimeError(
+                "LLM and tools must be initialized before sending messages"
+            )
         agent = AgentLoop(
             llm=self._llm,
             tools=self._tools,
@@ -333,6 +354,7 @@ class ScribeState:
                     ishiki = ish_file.read_text(encoding="utf-8")
             if identity or ishiki:
                 from scribe.types import ConsciousnessMode, PersonaConfig
+
                 persona = PersonaConfig(
                     identity=identity,
                     ishiki=ishiki,
@@ -342,8 +364,16 @@ class ScribeState:
 
         # Inject MemPalace if available
         if self._palace:
-            wing = self._book.palace_wing if self._book else self._config.palace_default_wing
-            room = self._book.palace_room if self._book else self._config.palace_default_room
+            wing = (
+                self._book.palace_wing
+                if self._book
+                else self._config.palace_default_wing
+            )
+            room = (
+                self._book.palace_room
+                if self._book
+                else self._config.palace_default_room
+            )
             agent = agent.with_palace(
                 self._palace,
                 wing=wing,
@@ -353,16 +383,18 @@ class ScribeState:
         model = self._config.default_model
 
         # Forwarder: agent deltas → stream_queue + event bus
-        forwarder_task: "asyncio.Task | None" = None
-        internal_queue: "asyncio.Queue[str] | None" = None
+        forwarder_task: asyncio.Task | None = None
+        internal_queue: asyncio.Queue[str] | None = None
         if stream_queue:
             internal_queue = asyncio.Queue()
 
             async def _forward():
                 while True:
                     try:
-                        delta = await asyncio.wait_for(internal_queue.get(), timeout=120.0)
-                    except asyncio.TimeoutError:
+                        delta = await asyncio.wait_for(
+                            internal_queue.get(), timeout=120.0
+                        )
+                    except TimeoutError:
                         break
                     await self._publish_event(session_id, delta, done=False)
                     await stream_queue.put(delta)
@@ -407,7 +439,9 @@ class ScribeState:
 
         return result
 
-    async def _publish_event(self, session_id: SessionId, content: str, done: bool) -> None:
+    async def _publish_event(
+        self, session_id: SessionId, content: str, done: bool
+    ) -> None:
         """Publish message update to event handlers."""
         for handler in self._event_handlers:
             try:

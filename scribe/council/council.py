@@ -7,10 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scribe.types import new_session_id, PersonaConfig
 from scribe.council.debate_state import WriterDebateState
-from scribe.council.writer_agent import WriterAgent
 from scribe.council.editor import EditorAgent
+from scribe.council.writer_agent import WriterAgent
+from scribe.types import PersonaConfig, new_session_id
 
 if TYPE_CHECKING:
     from scribe.llm.base import LlmDriver
@@ -40,6 +40,7 @@ class CouncilOrchestrator:
     def register_writer(self, writer_id: str, persona_path: Path) -> None:
         """注册一位作家"""
         from scribe.memory.persona import PersonaLoader
+
         persona = PersonaLoader.load(persona_path)
         self._writers[writer_id] = WriterAgent(writer_id, self._llm, persona)
 

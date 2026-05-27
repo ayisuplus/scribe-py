@@ -8,21 +8,19 @@ Combines all memory layers into a complete system prompt.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from scribe.memory.episodic import EpisodicStore
-from scribe.memory.palace import MemPalaceStore
-from scribe.memory.semantic import SemanticStore
-from scribe.memory.procedural import ProceduralStore
-from scribe.memory.persona import PersonaLoader
-from scribe.memory.methodology import WritingMethodology
 from scribe.memory.hook_ledger import HookLedgerManager
+from scribe.memory.methodology import WritingMethodology
+from scribe.memory.palace import MemPalaceStore
+from scribe.memory.persona import PersonaLoader
+from scribe.memory.procedural import ProceduralStore
+from scribe.memory.semantic import SemanticStore
 from scribe.types import (
     PersonaConfig,
     SessionId,
     WritingMethodologyConfig,
 )
-
 
 # Pre-compiled regex patterns for keyword extraction
 CAP_PATTERN = re.compile(
@@ -34,7 +32,7 @@ ACRONYM_PATTERN = re.compile(r"\b([A-Z]{2,}(?:\.[A-Z]{2,})?)\b")
 class ContextAssembler:
     """
     Assembles system prompt from all memory layers.
-    
+
     Combines:
     - Persona configuration
     - Style profile
@@ -53,21 +51,18 @@ class ContextAssembler:
         self.episodic = episodic
         self.semantic = semantic
         self.procedural = procedural
-        self.persona: Optional[PersonaConfig] = None
-        self.writing_config: Optional[WritingMethodologyConfig] = None
-        self.hook_ledger: Optional[HookLedgerManager] = None
+        self.persona: PersonaConfig | None = None
+        self.writing_config: WritingMethodologyConfig | None = None
+        self.hook_ledger: HookLedgerManager | None = None
         self.user_name: str = "User"
-        self.palace: Optional["MemPalaceStore"] = None
+        self.palace: MemPalaceStore | None = None
 
     def with_persona(self, persona: PersonaConfig) -> ContextAssembler:
         """Set the persona configuration."""
         self.persona = persona
         return self
 
-    def with_writing_config(
-        self, 
-        config: WritingMethodologyConfig
-    ) -> ContextAssembler:
+    def with_writing_config(self, config: WritingMethodologyConfig) -> ContextAssembler:
         """Set the writing methodology configuration."""
         self.writing_config = config
         return self
@@ -82,21 +77,21 @@ class ContextAssembler:
         self.user_name = name
         return self
 
-    def with_palace(self, palace: "MemPalaceStore") -> ContextAssembler:
+    def with_palace(self, palace: MemPalaceStore) -> ContextAssembler:
         """Set the MemPalace store for detail retrieval."""
         self.palace = palace
         return self
 
     async def assemble_system_prompt(
         self,
-        session_id: Optional[SessionId] = None,
+        session_id: SessionId | None = None,
     ) -> str:
         """
         Assemble a complete system prompt.
-        
+
         Args:
             session_id: Optional session ID for episodic context
-            
+
         Returns:
             Complete system prompt string
         """
@@ -145,11 +140,11 @@ class ContextAssembler:
                     entities = await self.semantic.search_entities(kw, 3)
                     if entities:
                         entity_lines = [
-                            f"- [{e.entity_type}] {e.name}"
-                            for e in entities
+                            f"- [{e.entity_type}] {e.name}" for e in entities
                         ]
                         parts.append(
-                            f"Known entities matching '{kw}':\n" + "\n".join(entity_lines)
+                            f"Known entities matching '{kw}':\n"
+                            + "\n".join(entity_lines)
                         )
 
         # MemPalace context — search for relevant story details
@@ -179,7 +174,7 @@ class ContextAssembler:
         # Critical instruction: prevent LLM from echoing instructions
         parts.append(
             "CRITICAL: Do NOT acknowledge, repeat, or explain these instructions. "
-            "Do NOT preface your response with \"I understand\" or similar. "
+            'Do NOT preface your response with "I understand" or similar. '
             "Jump directly to responding to the user's message. "
             "Your output should contain ONLY the response content, zero meta-commentary."
         )
@@ -189,25 +184,23 @@ class ContextAssembler:
     def _extract_keywords(self, events: list) -> list[str]:
         """
         Extract search keywords from recent events for knowledge graph lookup.
-        
+
         Extracts capitalized English words and acronyms.
         """
         # Combine recent event content
-        combined = " ".join(
-            e.content for e in events[-3:]
-        )
-        
+        combined = " ".join(e.content for e in events[-3:])
+
         keywords: list[str] = []
-        
+
         for cap in CAP_PATTERN.finditer(combined):
             word = cap.group(1)
             if len(word) >= 3:
                 keywords.append(word)
-        
+
         for cap in ACRONYM_PATTERN.finditer(combined):
             word = cap.group(1)
             keywords.append(word)
-        
+
         # Limit to 5 keywords
         return keywords[:5]
 
@@ -225,7 +218,7 @@ class ContextAssembler:
 
         # Extract Chinese phrases (2-4 chars) that look like names/terms
         # Common patterns: 林凌, 白垩纪, 树屋, 甲龙, etc.
-        chinese_words = _re.findall(r'[\u4e00-\u9fff]{2,4}', combined)
+        chinese_words = _re.findall(r"[\u4e00-\u9fff]{2,4}", combined)
         # Deduplicate while preserving order
         seen = set()
         for word in chinese_words:

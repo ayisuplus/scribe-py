@@ -19,7 +19,7 @@ class PalaceSearchTool(Tool):
     Search the memory palace for story details, scenes, characters, and events.
     """
 
-    def __init__(self, palace: "MemPalaceStore"):
+    def __init__(self, palace: MemPalaceStore):
         self._palace = palace
 
     def name(self) -> str:
@@ -55,7 +55,7 @@ class PalaceSearchTool(Tool):
             "required": ["query"],
         }
 
-    async def execute(self, params: dict, ctx: "ToolContext") -> ToolResult:
+    async def execute(self, params: dict, ctx: ToolContext) -> ToolResult:
         query = params.get("query", "")
         if not query:
             return ToolResult(content="Error: query is required", is_error=True)
@@ -69,9 +69,7 @@ class PalaceSearchTool(Tool):
                 query=query, wing=wing, room=room, limit=limit
             )
         except Exception as e:
-            return ToolResult(
-                content=f"Palace search error: {e}", is_error=True
-            )
+            return ToolResult(content=f"Palace search error: {e}", is_error=True)
 
         if not hits:
             return ToolResult(content=f'No results found for: "{query}"')

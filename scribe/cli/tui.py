@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable
 
 from scribe import __version__
 from scribe.api.state import ConfigUpdate, ScribeState
@@ -251,7 +251,7 @@ class InteractiveMode:
             while True:
                 try:
                     delta = await asyncio.wait_for(queue.get(), timeout=120.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     break
                 emit_delta(delta)
 
@@ -328,7 +328,9 @@ class InteractiveMode:
                 shown_startup = True
 
             for role, content in self.messages:
-                color = "green" if role == "You" else "cyan" if role == "Scribe" else "red"
+                color = (
+                    "green" if role == "You" else "cyan" if role == "Scribe" else "red"
+                )
                 console.print(f"[{color} bold]{role}>[/{color}] {content}")
 
             try:
@@ -347,5 +349,5 @@ class InteractiveMode:
             await self._send_regular_message(
                 text,
                 console.print,
-                lambda value: console.print(value, end="", flush=True),
+                lambda value: console.print(value, end=""),
             )

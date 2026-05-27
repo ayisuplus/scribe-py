@@ -47,7 +47,12 @@ def _parse_ddg_lite(html: str) -> list[str]:
         for cap in _GENERIC_LINK_RE.finditer(html):
             href = cap[1].strip()
             title = cap[2].strip()
-            if not title or "duckduckgo.com" in href or href.startswith("//") or title == "More results":
+            if (
+                not title
+                or "duckduckgo.com" in href
+                or href.startswith("//")
+                or title == "More results"
+            ):
                 continue
             results.append(f"{title}\n  {href}")
 
@@ -75,13 +80,11 @@ class WebSearchTool(Tool):
     def parameters(self) -> dict:
         return {
             "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"}
-            },
+            "properties": {"query": {"type": "string", "description": "Search query"}},
             "required": ["query"],
         }
 
-    async def execute(self, params: dict, ctx: "ToolContext") -> ToolResult:
+    async def execute(self, params: dict, ctx: ToolContext) -> ToolResult:
         query = params.get("query")
         if not query:
             return ToolResult(content="Missing 'query' parameter", is_error=True)

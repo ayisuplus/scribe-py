@@ -8,20 +8,20 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
-from scribe.types import SessionInfo, SessionId, new_session_id
+from scribe.types import SessionId, SessionInfo, new_session_id
 
 
 @dataclass
 class SessionManager:
     """
     Manages sessions with JSON file persistence.
-    
+
     Sessions are stored as individual JSON files in the sessions directory.
     """
+
     sessions_dir: Path
     sessions: dict[SessionId, SessionInfo]
 
@@ -55,19 +55,19 @@ class SessionManager:
         except Exception:
             pass
 
-    def create_session(self, title: Optional[str] = None) -> SessionId:
+    def create_session(self, title: str | None = None) -> SessionId:
         """
         Create a new session and return its ID.
-        
+
         Args:
             title: Optional title for the session. If None, uses a generated title.
         """
         session_id = new_session_id()
-        now = datetime.now(timezone.utc)
-        
+        now = datetime.now(UTC)
+
         if title is None:
             title = f"Session {now.strftime('%Y-%m-%d %H:%M')}"
-        
+
         info = SessionInfo(
             id=session_id,
             title=title,
@@ -75,7 +75,7 @@ class SessionManager:
             updated_at=now,
             message_count=0,
         )
-        
+
         self._save_session(info)
         self.sessions[session_id] = info
         return session_id
@@ -88,7 +88,7 @@ class SessionManager:
         sessions.sort(key=lambda s: s.updated_at, reverse=True)
         return sessions
 
-    def get_session(self, session_id: SessionId) -> Optional[SessionInfo]:
+    def get_session(self, session_id: SessionId) -> SessionInfo | None:
         """Get a session by ID."""
         return self.sessions.get(session_id)
 
@@ -97,5 +97,5 @@ class SessionManager:
         if session_id in self.sessions:
             session = self.sessions[session_id]
             session.message_count += 1
-            session.updated_at = datetime.now(timezone.utc)
+            session.updated_at = datetime.now(UTC)
             self._save_session(session)

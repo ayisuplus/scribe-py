@@ -186,9 +186,7 @@ def setup_wizard() -> dict:
         if not api_key:
             print("  Error: API key cannot be empty. Run `scribe --setup` to retry.")
             sys.exit(1)
-        masked = (
-            f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "****"
-        )
+        masked = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "****"
         print(f"  Key set: {masked}")
 
     # Pick model
@@ -316,9 +314,7 @@ async def list_sessions_cmd(state: ScribeState) -> None:
     print("-" * 65)
     for s in sessions:
         updated = s.updated_at.strftime("%Y-%m-%d %H:%M")
-        print(
-            f"{s.id[:8]:<10} {s.message_count:>6}  {updated:<20}  {s.title}"
-        )
+        print(f"{s.id[:8]:<10} {s.message_count:>6}  {updated:<20}  {s.title}")
 
 
 # ── Single-shot ────────────────────────────────────────────────────────
@@ -332,7 +328,7 @@ async def run_single_prompt(state: ScribeState, session_id: str, prompt: str) ->
         while True:
             try:
                 delta = await asyncio.wait_for(queue.get(), timeout=120.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 break
             print(delta, end="", flush=True)
 
@@ -353,7 +349,7 @@ async def run_single_prompt(state: ScribeState, session_id: str, prompt: str) ->
 
 @click.group(invoke_without_command=True)
 @click.pass_context
-@click.version_option(version="0.3.0", prog_name="scribe")
+@click.version_option(version="0.3.1", prog_name="scribe")
 def cli(ctx: click.Context) -> None:
     """Scribe — AI writing companion."""
     if ctx.invoked_subcommand is None:
@@ -370,7 +366,9 @@ def setup() -> None:
 
 @cli.command()
 @click.option("-p", "--prompt", help="Single-shot prompt (non-interactive)")
-@click.option("-s", "--session", "session_id", help="Resume a specific session by ID prefix")
+@click.option(
+    "-s", "--session", "session_id", help="Resume a specific session by ID prefix"
+)
 @click.option("--list-sessions", is_flag=True, help="List all saved sessions")
 @click.option("--model", help="Model override for this invocation")
 @click.option("--book", help="Book name to open (skips selection prompt)")
@@ -401,7 +399,7 @@ def run(
     if list_books:
         books = bookshelf.list_books()
         if not books:
-            print("  No books yet. Create one with: scribe run --new-book \"书名\"")
+            print('  No books yet. Create one with: scribe run --new-book "书名"')
             return
         active = bookshelf.get_active()
         print("\n  📚 书架")
@@ -435,10 +433,13 @@ def run(
     # 向导模式（选书后自动进入）
     if selected_book and council:
         from scribe.council.wizard import CouncilWizard
+
         try:
             from scribe.llm import create_llm
+
             if CONFIG_PATH.exists():
                 import toml
+
                 cfg = toml.loads(CONFIG_PATH.read_text(encoding="utf-8"))
                 provider = cfg.get("core", {}).get("default_provider", "openai")
                 model_name = cfg.get("core", {}).get("default_model", "gpt-4o")

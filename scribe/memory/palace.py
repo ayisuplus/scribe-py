@@ -46,6 +46,7 @@ class MemPalaceStore:
         path = self._palace_path
         if path is None:
             from mempalace.config import MempalaceConfig
+
             path = MempalaceConfig().palace_path
 
         self._collection = get_collection(path, create=False)
@@ -56,7 +57,8 @@ class MemPalaceStore:
         if self._palace_path:
             return self._palace_path
         from mempalace.config import MempalaceConfig
-        return MempalaceConfig().palace_path
+
+        return str(MempalaceConfig().palace_path)
 
     async def search(
         self,
@@ -66,17 +68,15 @@ class MemPalaceStore:
         limit: int = 5,
     ) -> list[PalaceHit]:
         """Search drawers by keyword. Returns matching drawer summaries."""
-        return await asyncio.to_thread(
-            self._search_sync, query, wing, room, limit
-        )
+        return await asyncio.to_thread(self._search_sync, query, wing, room, limit)
 
     def _search_sync(
         self, query: str, wing: str | None, room: str | None, limit: int
     ) -> list[PalaceHit]:
-        from mempalace.searcher import build_where_filter, _first_or_empty, _hybrid_rank
+        from mempalace.searcher import _first_or_empty, _hybrid_rank, build_where_filter
 
         col = self._get_collection()
-        where = build_where_filter(wing, room)
+        where = build_where_filter(wing or "", room or "")
 
         kwargs = {
             "query_texts": [query],
@@ -107,11 +107,19 @@ class MemPalaceStore:
 
         return [
             PalaceHit(
-                text=hit["text"],
-                wing=hit["metadata"].get("wing", ""),
-                room=hit["metadata"].get("room", ""),
-                source_file=Path(hit["metadata"].get("source_file", "")).name,
-                similarity=round(max(0.0, 1 - hit["distance"]), 3),
+                text=str(hit["text"]),
+                wing=hit["metadata"].get("wing", "")
+                if isinstance(hit["metadata"], dict)
+                else "",
+                room=hit["metadata"].get("room", "")
+                if isinstance(hit["metadata"], dict)
+                else "",
+                source_file=Path(
+                    hit["metadata"].get("source_file", "")
+                    if isinstance(hit["metadata"], dict)
+                    else ""
+                ).name,
+                similarity=round(max(0.0, 1 - float(str(hit["distance"]))), 3),
             )
             for hit in hits
         ]
@@ -128,13 +136,9 @@ class MemPalaceStore:
         Writes to a temp file, then mines it.
         Returns True on success.
         """
-        return await asyncio.to_thread(
-            self._mine_sync, content, wing, room, title
-        )
+        return await asyncio.to_thread(self._mine_sync, content, wing, room, title)
 
-    def _mine_sync(
-        self, content: str, wing: str, room: str, title: str
-    ) -> bool:
+    def _mine_sync(self, content: str, wing: str, room: str, title: str) -> bool:
         from mempalace.miner import mine
 
         palace_path = self._resolve_path()
@@ -202,6 +206,7 @@ class MemPalaceStore:
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         try:
+
             class Args:
                 palace = self._palace_path
 

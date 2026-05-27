@@ -27,10 +27,10 @@ def test_version_metadata_is_current():
     )
     result = CliRunner().invoke(cli, ["--version"])
 
-    assert scribe.__version__ == "0.3.0"
-    assert pyproject["project"]["version"] == "0.3.0"
+    assert scribe.__version__ == "0.3.1"
+    assert pyproject["project"]["version"] == "0.3.1"
     assert result.exit_code == 0
-    assert "0.3.0" in result.output
+    assert "0.3.1" in result.output
 
 
 class TestGetApiKeyFromEnv:

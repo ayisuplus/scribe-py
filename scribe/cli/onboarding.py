@@ -25,12 +25,12 @@ INTENTS = {
 class OnboardingResult:
     """Result of startup guidance."""
 
-    book: "Book | None"
+    book: Book | None
     intent: str
     startup_lines: list[str]
 
 
-def build_quickstart_lines(book: "Book | None", intent: str) -> list[str]:
+def build_quickstart_lines(book: Book | None, intent: str) -> list[str]:
     """Build compact guidance shown when the TUI starts."""
     name = book.name if book else "no active book"
     genre = f" ({book.genre})" if book and book.genre else ""
@@ -45,7 +45,7 @@ def build_quickstart_lines(book: "Book | None", intent: str) -> list[str]:
     ]
 
 
-def run_onboarding(bookshelf: "Bookshelf") -> OnboardingResult:
+def run_onboarding(bookshelf: Bookshelf) -> OnboardingResult:
     """Guide user through book selection and first writing intent."""
     book = _choose_book(bookshelf)
     intent = _choose_intent()
@@ -56,7 +56,7 @@ def run_onboarding(bookshelf: "Bookshelf") -> OnboardingResult:
     )
 
 
-def _choose_book(bookshelf: "Bookshelf") -> "Book | None":
+def _choose_book(bookshelf: Bookshelf) -> Book | None:
     books = bookshelf.list_books()
 
     if not books:

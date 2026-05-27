@@ -21,7 +21,6 @@ from scribe.types import (
     PersonaConfig,
     Role,
     SessionId,
-    StreamChunk,
     ToolCall,
     ToolResult,
     WritingMethodologyConfig,
@@ -38,7 +37,7 @@ if TYPE_CHECKING:
     from scribe.tools.registry import ToolRegistry
 
 from scribe.agent.loop_guard import LoopGuard
-from scribe.agent.retry import RetryConfig, RetryManager, RetryError, Result
+from scribe.agent.retry import Result, RetryConfig, RetryError, RetryManager
 from scribe.agent.token_counter import count_tokens, truncate_messages
 
 logger = logging.getLogger(__name__)
@@ -68,59 +67,59 @@ class AgentLoop:
 
     def __init__(
         self,
-        llm: "LlmDriver",
-        tools: "ToolRegistry",
-        episodic: "EpisodicStore | None" = None,
-        semantic: "SemanticStore | None" = None,
-        procedural: "ProceduralStore | None" = None,
+        llm: LlmDriver,
+        tools: ToolRegistry,
+        episodic: EpisodicStore | None = None,
+        semantic: SemanticStore | None = None,
+        procedural: ProceduralStore | None = None,
     ):
         self._llm = llm
         self._tools = tools
         self._episodic = episodic
         self._semantic = semantic
         self._procedural = procedural
-        self._persona: "PersonaConfig | None" = None
-        self._writing_config: "WritingMethodologyConfig | None" = None
-        self._hook_ledger: "HookLedgerManager | None" = None
+        self._persona: PersonaConfig | None = None
+        self._writing_config: WritingMethodologyConfig | None = None
+        self._hook_ledger: HookLedgerManager | None = None
         self._user_name: str = "User"
         self._retry_config = RetryConfig()
         self._agent_config = AgentConfig()
-        self._palace: "MemPalaceStore | None" = None
+        self._palace: MemPalaceStore | None = None
         self._palace_wing: str | None = None
         self._palace_room: str | None = None
 
     # ── Builder ──
 
-    def with_persona(self, persona: "PersonaConfig") -> "AgentLoop":
+    def with_persona(self, persona: PersonaConfig) -> AgentLoop:
         self._persona = persona
         return self
 
-    def with_writing_config(self, config: "WritingMethodologyConfig") -> "AgentLoop":
+    def with_writing_config(self, config: WritingMethodologyConfig) -> AgentLoop:
         self._writing_config = config
         return self
 
-    def with_hook_ledger(self, ledger: "Any") -> "AgentLoop":
+    def with_hook_ledger(self, ledger: Any) -> AgentLoop:
         self._hook_ledger = ledger
         return self
 
-    def with_user_name(self, name: str) -> "AgentLoop":
+    def with_user_name(self, name: str) -> AgentLoop:
         self._user_name = name
         return self
 
-    def with_retry_config(self, config: "RetryConfig") -> "AgentLoop":
+    def with_retry_config(self, config: RetryConfig) -> AgentLoop:
         self._retry_config = config
         return self
 
-    def with_agent_config(self, config: "AgentConfig") -> "AgentLoop":
+    def with_agent_config(self, config: AgentConfig) -> AgentLoop:
         self._agent_config = config
         return self
 
     def with_palace(
         self,
-        palace: "MemPalaceStore",
+        palace: MemPalaceStore,
         wing: str | None = None,
         room: str | None = None,
-    ) -> "AgentLoop":
+    ) -> AgentLoop:
         self._palace = palace
         self._palace_wing = wing
         self._palace_room = room
@@ -135,17 +134,15 @@ class AgentLoop:
         model: str,
     ) -> str:
         """Blocking run — calls LLM, executes tools, returns final text."""
-        return await self._run_impl(
-            session_id, conversation, model, None, None
-        )
+        return await self._run_impl(session_id, conversation, model, None, None)
 
     async def run_with_cancel(
         self,
         session_id: SessionId,
         conversation: list[Message],
         model: str,
-        cancel_event: "asyncio.Event | None" = None,
-        stream_queue: "asyncio.Queue[str] | None" = None,
+        cancel_event: asyncio.Event | None = None,
+        stream_queue: asyncio.Queue[str] | None = None,
     ) -> str:
         """Run with cancellation support and optional streaming."""
         return await self._run_impl(
@@ -157,13 +154,13 @@ class AgentLoop:
     async def chat_with_stream(
         self,
         req: ChatRequest,
-        stream_queue: "asyncio.Queue[str]",
+        stream_queue: asyncio.Queue[str],
     ) -> ChatResponse:
         """
         Call LLM via stream_chat, accumulate content, forward deltas to stream_queue.
         Falls back to non-streaming if streaming produces no content.
         """
-        queue: "asyncio.Queue[StreamChunk]" = asyncio.Queue()
+        queue: asyncio.Queue[str] = asyncio.Queue()
 
         async def _stream_task():
             try:
@@ -174,22 +171,17 @@ class AgentLoop:
         task = asyncio.create_task(_stream_task())
 
         full_content = ""
-        final_tool_calls: list[ToolCall] | None = None
 
         try:
             while True:
                 try:
                     chunk = await asyncio.wait_for(queue.get(), timeout=120.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     break
 
-                if chunk.delta:
-                    full_content += chunk.delta
-                    await stream_queue.put(chunk.delta)
-
-                if chunk.done:
-                    final_tool_calls = chunk.tool_calls
-                    break
+                if chunk:
+                    full_content += chunk
+                    await stream_queue.put(chunk)
         finally:
             task.cancel()
             try:
@@ -198,12 +190,11 @@ class AgentLoop:
                 pass
 
         # Fallback if no content
-        if not full_content and not final_tool_calls:
+        if not full_content:
             return await self._llm.chat(req)
 
         return ChatResponse(
             content=full_content if full_content else None,
-            tool_calls=final_tool_calls,
         )
 
     # ── Audit ──
@@ -236,10 +227,12 @@ class AgentLoop:
 
             # Inject audit feedback
             feedback = self._build_audit_feedback(critical)
-            current_conversation.extend([
-                Message(role=Role.ASSISTANT, content=last_result),
-                Message(role=Role.USER, content=feedback),
-            ])
+            current_conversation.extend(
+                [
+                    Message(role=Role.ASSISTANT, content=last_result),
+                    Message(role=Role.USER, content=feedback),
+                ]
+            )
 
         return last_result
 
@@ -250,8 +243,8 @@ class AgentLoop:
         session_id: SessionId,
         conversation: list[Message],
         model: str,
-        cancel_event: "asyncio.Event | None" = None,
-        stream_queue: "asyncio.Queue[str] | None" = None,
+        cancel_event: asyncio.Event | None = None,
+        stream_queue: asyncio.Queue[str] | None = None,
     ) -> str:
         # 1. Record user event
         await self._record_user_event(session_id, conversation)
@@ -292,7 +285,7 @@ class AgentLoop:
             )
 
             # Call LLM (streaming or not)
-            if use_stream:
+            if use_stream and stream_queue is not None:
                 response = await self.chat_with_stream(req, stream_queue)
             else:
                 response = await self._llm.chat(req)
@@ -317,48 +310,60 @@ class AgentLoop:
                 return content
 
             # Append assistant message with tool calls
-            messages.append(Message(
-                role=Role.ASSISTANT,
-                content=response.content or "",
-                tool_calls=tool_calls,
-            ))
+            messages.append(
+                Message(
+                    role=Role.ASSISTANT,
+                    content=response.content or "",
+                    tool_calls=tool_calls,
+                )
+            )
 
             # Execute tools
             from scribe.tools.base import ToolContext
+
             ctx = ToolContext(working_dir=Path.cwd())
 
             for tc in tool_calls:
                 try:
                     loop_guard.check(tc.function.name, tc.function.arguments)
                 except ValueError as e:
-                    messages.append(Message(
-                        role=Role.TOOL,
-                        content=str(e),
-                        name=tc.function.name,
-                        tool_call_id=tc.id,
-                    ))
+                    messages.append(
+                        Message(
+                            role=Role.TOOL,
+                            content=str(e),
+                            name=tc.function.name,
+                            tool_call_id=tc.id,
+                        )
+                    )
                     continue
 
                 result = await self._execute_tool(tc, ctx)
                 content = result.content
                 if len(content) > self._agent_config.max_tool_result_chars:
-                    content = content[:self._agent_config.max_tool_result_chars] + "\n\n[truncated]"
+                    content = (
+                        content[: self._agent_config.max_tool_result_chars]
+                        + "\n\n[truncated]"
+                    )
 
-                messages.append(Message(
-                    role=Role.TOOL,
-                    content=content,
-                    name=tc.function.name,
-                    tool_call_id=tc.id,
-                ))
+                messages.append(
+                    Message(
+                        role=Role.TOOL,
+                        content=content,
+                        name=tc.function.name,
+                        tool_call_id=tc.id,
+                    )
+                )
 
             continuations += 1
             if continuations >= self._agent_config.max_continuations:
-                return "Reached maximum continuation limit. Please continue your request."
+                return (
+                    "Reached maximum continuation limit. Please continue your request."
+                )
 
     async def _execute_tool(
         self,
         tc: ToolCall,
-        ctx: "ToolContext",
+        ctx: ToolContext,
     ) -> ToolResult:
         """Execute a single tool call with retry and timeout."""
 
@@ -392,7 +397,9 @@ class AgentLoop:
             logger.warning("Tool execution failed after retries: %s", e)
             return ToolResult(content=f"Tool execution failed: {e}", is_error=True)
 
-    async def _record_user_event(self, session_id: SessionId, conversation: list[Message]):
+    async def _record_user_event(
+        self, session_id: SessionId, conversation: list[Message]
+    ):
         """Record the last user message in episodic memory."""
         if not self._episodic:
             return
@@ -467,25 +474,30 @@ class AgentLoop:
                 if paragraphs:
                     avg = char_count / max(len(paragraphs), 1)
                     if avg > config.density_rules.hook_per_chars * 3:
-                        issues.append(AuditIssue(
-                            category="hook_density",
-                            severity="critical",
-                            location="overall",
-                            suggestion="Add more hooks or shorter paragraphs.",
-                        ))
+                        issues.append(
+                            AuditIssue(
+                                category="hook_density",
+                                severity="critical",
+                                location="overall",
+                                suggestion="Add more hooks or shorter paragraphs.",
+                            )
+                        )
 
         if config.paragraph_rules:
             short_count = sum(
-                1 for line in lines
+                1
+                for line in lines
                 if 0 < len(line) < config.paragraph_rules.min_narrative_chars
             )
             if short_count > config.paragraph_rules.max_short_paragraphs:
-                issues.append(AuditIssue(
-                    category="short_paragraphs",
-                    severity="critical",
-                    location=f"{short_count} short paragraphs",
-                    suggestion="Consolidate short paragraphs or expand their content.",
-                ))
+                issues.append(
+                    AuditIssue(
+                        category="short_paragraphs",
+                        severity="critical",
+                        location=f"{short_count} short paragraphs",
+                        suggestion="Consolidate short paragraphs or expand their content.",
+                    )
+                )
 
         return issues
 

@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from scribe.types import Message, Role, SessionId, PersonaConfig
 from scribe.agent.loop import AgentLoop
-from scribe.tools.registry import ToolRegistry
 from scribe.council.debate_state import WriterDebateState
+from scribe.tools.registry import ToolRegistry
+from scribe.types import Message, PersonaConfig, Role, SessionId
 
 if TYPE_CHECKING:
     from scribe.llm.base import LlmDriver
@@ -70,7 +70,9 @@ class EditorAgent:
         # 辩论记录
         parts.append("\n## 辩论记录")
         for op in state.history:
-            parts.append(f"\n### 【{op.writer_name}·第{op.round}轮·{op.stance}】\n{op.content}")
+            parts.append(
+                f"\n### 【{op.writer_name}·第{op.round}轮·{op.stance}】\n{op.content}"
+            )
 
         # 裁决指令
         parts.append("""

@@ -14,6 +14,7 @@ from scribe.types import ToolResult
 @dataclass
 class ToolContext:
     """Execution context passed to tools."""
+
     working_dir: Path
 
 
@@ -39,9 +40,7 @@ class Tool(ABC):
         ...
 
     @abstractmethod
-    async def execute(
-        self, params: dict, ctx: ToolContext
-    ) -> ToolResult:
+    async def execute(self, params: dict, ctx: ToolContext) -> ToolResult:
         """
         Execute the tool with the given JSON parameters.
         Returns a ToolResult with content and is_error flag.

@@ -8,12 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from scribe.council.council import CouncilConfig, CouncilOrchestrator
 from scribe.council.router import WriterRouter
-from scribe.council.council import CouncilOrchestrator, CouncilConfig
 
 if TYPE_CHECKING:
+    from scribe.bookshelf import Book, Bookshelf
     from scribe.llm.base import LlmDriver
-    from scribe.bookshelf import Bookshelf, Book
 
 
 @dataclass
@@ -43,7 +43,7 @@ class ThemeSummary:
             scene=answers.get("scene"),
         )
 
-    def confirm(self, interviewer: "ThemeInterviewer") -> "ThemeSummary":
+    def confirm(self, interviewer: ThemeInterviewer) -> ThemeSummary:
         """显示摘要，用户确认。不确认则重新问答。"""
         while True:
             print(f"""
@@ -55,7 +55,7 @@ class ThemeSummary:
   冲突：{self.conflict}
   世界观：{self.setting}
   效果：{self.effect}
-  场景：{self.scene or '无'}
+  场景：{self.scene or "无"}
 """)
             if input("确认？(Y/n) ").strip().lower() != "n":
                 return self
@@ -90,9 +90,9 @@ class ThemeSummary:
 class WritingScope:
     """写作范围"""
 
-    mode: str           # "outline" | "chapter" | "volume" | "full"
+    mode: str  # "outline" | "chapter" | "volume" | "full"
     target: str | None  # e.g. "第3章", "卷二", None
-    description: str    # 人类可读描述
+    description: str  # 人类可读描述
 
 
 class ScopeParser:
@@ -111,21 +111,28 @@ class ScopeParser:
             return WritingScope(mode="full", target=None, description="生成整本书")
 
         # 范围匹配："从第3章到第7章"（必须在章节匹配之前）
-        range_match = re.search(r'从.+到', text)
+        range_match = re.search(r"从.+到", text)
         if range_match:
             return WritingScope(mode="chapter", target=text, description=f"生成{text}")
 
         # 章节匹配："第3章", "第三章"
-        chapter_match = re.search(r'第(\d+|[一二三四五六七八九十百]+)章', text)
+        chapter_match = re.search(r"第(\d+|[一二三四五六七八九十百]+)章", text)
         if chapter_match:
             target = chapter_match.group(0)
-            return WritingScope(mode="chapter", target=target, description=f"生成{target}")
+            return WritingScope(
+                mode="chapter", target=target, description=f"生成{target}"
+            )
 
         # 卷匹配："卷二", "第二卷"
-        volume_match = re.search(r'(第?(\d+|[一二三四五六七八九十百]+)卷|卷[一二三四五六七八九十百\d]+)', text)
+        volume_match = re.search(
+            r"(第?(\d+|[一二三四五六七八九十百]+)卷|卷[一二三四五六七八九十百\d]+)",
+            text,
+        )
         if volume_match:
             target = volume_match.group(0)
-            return WritingScope(mode="volume", target=target, description=f"生成{target}")
+            return WritingScope(
+                mode="volume", target=target, description=f"生成{target}"
+            )
 
         # 默认：大纲
         return WritingScope(mode="outline", target=None, description="生成大纲")
@@ -135,13 +142,29 @@ class ThemeInterviewer:
     """通过多轮问答确定写作主题"""
 
     QUESTIONS = [
-        ("genre", "你想写什么类型？", ["仙侠", "都市", "科幻", "纯文学", "历史", "悬疑", "奇幻", "其他"]),
-        ("emotion", "故事的核心情绪是什么？", ["热血", "虐心", "温暖", "悬疑", "搞笑", "沉重", "治愈"]),
+        (
+            "genre",
+            "你想写什么类型？",
+            ["仙侠", "都市", "科幻", "纯文学", "历史", "悬疑", "奇幻", "其他"],
+        ),
+        (
+            "emotion",
+            "故事的核心情绪是什么？",
+            ["热血", "虐心", "温暖", "悬疑", "搞笑", "沉重", "治愈"],
+        ),
         ("protagonist", "主角是什么样的人？（身份/性格/缺陷）", None),
         ("desire", "主角最想要什么？（目标/执念）", None),
-        ("conflict", "最大的冲突是什么？", ["人与人", "人与命运", "人与自我", "人与社会", "人与自然"]),
+        (
+            "conflict",
+            "最大的冲突是什么？",
+            ["人与人", "人与命运", "人与自我", "人与社会", "人与自然"],
+        ),
         ("setting", "故事发生在哪里？（世界观/时代/地点）", None),
-        ("effect", "你想达到什么效果？", ["让读者笑", "让读者哭", "让读者思考", "让读者紧张", "让读者感动"]),
+        (
+            "effect",
+            "你想达到什么效果？",
+            ["让读者笑", "让读者哭", "让读者思考", "让读者紧张", "让读者感动"],
+        ),
         ("scene", "有什么特别想写的场景或画面吗？（没有可跳过）", None),
     ]
 
@@ -252,11 +275,11 @@ class CouncilWizard:
 冲突：{theme.conflict}
 世界观：{theme.setting}
 效果：{theme.effect}
-场景：{theme.scene or '无'}
+场景：{theme.scene or "无"}
 
 写作任务：{scope.description}
 写作模式：{scope.mode}
-目标范围：{scope.target or '无特定目标'}
+目标范围：{scope.target or "无特定目标"}
 """
 
     def _save_result(self, book: Book, result: str, scope: WritingScope) -> None:

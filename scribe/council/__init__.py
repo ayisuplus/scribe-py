@@ -1,17 +1,17 @@
 """Writer Council — 多作家辩论系统"""
 
-from scribe.council.debate_state import WriterOpinion, WriterDebateState
-from scribe.council.router import WriterRouter
-from scribe.council.writer_agent import WriterAgent, load_writer_persona
+from scribe.council.council import CouncilConfig, CouncilOrchestrator
+from scribe.council.debate_state import WriterDebateState, WriterOpinion
 from scribe.council.editor import EditorAgent
-from scribe.council.council import CouncilOrchestrator, CouncilConfig
+from scribe.council.router import WriterRouter
 from scribe.council.wizard import (
-    ThemeInterviewer,
+    CouncilWizard,
     ScopeParser,
+    ThemeInterviewer,
     ThemeSummary,
     WritingScope,
-    CouncilWizard,
 )
+from scribe.council.writer_agent import WriterAgent, load_writer_persona
 
 __all__ = [
     "WriterOpinion",

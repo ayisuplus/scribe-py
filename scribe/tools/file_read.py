@@ -27,7 +27,9 @@ class FileReadTool(Tool):
         return "file_read"
 
     def description(self) -> str:
-        return "Read the contents of a local file (text, Markdown, or other text formats)."
+        return (
+            "Read the contents of a local file (text, Markdown, or other text formats)."
+        )
 
     def parameters(self) -> dict:
         return {
@@ -41,7 +43,7 @@ class FileReadTool(Tool):
             "required": ["path"],
         }
 
-    async def execute(self, params: dict, ctx: "ToolContext") -> ToolResult:
+    async def execute(self, params: dict, ctx: ToolContext) -> ToolResult:
         path_str = params.get("path")
         if not path_str:
             return ToolResult(content="Missing 'path' parameter", is_error=True)
@@ -64,7 +66,9 @@ class FileReadTool(Tool):
         try:
             sandbox = ctx.working_dir.resolve()
         except OSError as e:
-            return ToolResult(content=f"Cannot resolve working directory: {e}", is_error=True)
+            return ToolResult(
+                content=f"Cannot resolve working directory: {e}", is_error=True
+            )
 
         if not str(canonical).startswith(str(sandbox)):
             return ToolResult(
