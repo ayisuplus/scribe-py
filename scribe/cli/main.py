@@ -365,6 +365,131 @@ def setup() -> None:
 
 
 @cli.command()
+@click.option("--name", "-n", help="Author's real name (e.g., 'Paul Auster')")
+@click.option("--genre", "-g", default="fiction", help="Genre (fiction/essay/script/etc.)")
+@click.option("--direction", "-d", default="all", help="Focus direction (all/style/structure/voice)")
+@click.option("--list", "list_writers", is_flag=True, help="List all available writers")
+@click.option("--remove", "-r", help="Remove a writer by name/ID")
+def writer(
+    name: str | None,
+    genre: str,
+    direction: str,
+    list_writers: bool,
+    remove: str | None,
+) -> None:
+    """
+    Manage writer personas.
+
+    Add a writer:
+      scribe writer --name "Paul Auster" --genre fiction
+
+    List writers:
+      scribe writer --list
+
+    Remove a writer:
+      scribe writer --remove "paul-auster"
+    """
+    from scribe.council import WriterRegistry, WriterDistiller
+    from scribe.llm import create_llm
+
+    registry = WriterRegistry()
+
+    # List writers
+    if list_writers:
+        writers = registry.list_writers()
+        if not writers:
+            print("  No writers yet. Add one with: scribe writer --name \"Author Name\"")
+            return
+        print("  Available writers:")
+        print("  " + "─" * 40)
+        for w in writers:
+            print(f"  · {w.name} ({w.genre}) - {w.id}")
+        print()
+        print(f"  Total: {len(writers)} writer(s)")
+        return
+
+    # Remove writer
+    if remove:
+        # Try to find by ID or name
+        writer_obj = registry.get_writer(remove)
+        if not writer_obj:
+            # Try to find by partial match
+            for w in registry.list_writers():
+                if w.id == remove or w.name.lower() == remove.lower():
+                    writer_obj = w
+                    break
+
+        if not writer_obj:
+            print(f"  Writer not found: {remove}")
+            return
+
+        if registry.remove_writer(writer_obj.id):
+            print(f"  Removed: {writer_obj.name}")
+        else:
+            print(f"  Failed to remove: {writer_obj.name}")
+        return
+
+    # Add writer
+    if not name:
+        print("  Error: --name is required when adding a writer")
+        print("  Usage: scribe writer --name \"Author Name\"")
+        return
+
+    # Get LLM for distillation
+    if CONFIG_PATH.exists():
+        import toml
+
+        cfg = toml.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        provider = cfg.get("core", {}).get("default_provider", "openai")
+        model_name = cfg.get("core", {}).get("default_model", "gpt-4o")
+    else:
+        provider, model_name = "openai", "gpt-4o"
+
+    # Check if writer already exists
+    from scribe.council.distiller import slugify
+
+    writer_id = slugify(name)
+    if registry.get_writer(writer_id):
+        print(f"  Writer '{name}' already exists.")
+        print(f"  ID: {writer_id}")
+        return
+
+    print(f"  Distilling writer: {name}")
+    print(f"  Genre: {genre}")
+    print(f"  Direction: {direction}")
+    print()
+
+    try:
+        llm = create_llm(provider, model_name)
+        distiller = WriterDistiller(llm)
+
+        # Run distillation
+        import asyncio
+
+        writer_obj = asyncio.run(
+            distiller.distill(
+                real_name=name,
+                genre=genre,
+                direction=direction,
+            )
+        )
+
+        # Add to registry
+        registry.add_writer(writer_obj)
+
+        print(f"  ✓ Created writer: {writer_obj.name}")
+        print(f"    ID: {writer_obj.id}")
+        print(f"    Genre: {writer_obj.genre}")
+        if writer_obj.mental_models:
+            print(f"    Mental models: {len(writer_obj.mental_models)}")
+        print()
+        print(f"  Stored in: {registry.get_writer_dir(writer_obj.id)}")
+
+    except Exception as e:
+        print(f"  Failed to distill writer: {e}")
+
+
+@cli.command()
 @click.option("-p", "--prompt", help="Single-shot prompt (non-interactive)")
 @click.option(
     "-s", "--session", "session_id", help="Resume a specific session by ID prefix"

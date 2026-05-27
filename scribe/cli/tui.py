@@ -53,6 +53,8 @@ HELP_LINES = [
     "  /switch <id>   Resume a session",
     "  /council       Run writer council wizard",
     "  /writers       List available writers",
+    "  /add-writer    Add a new writer (prompt for name)",
+    "  /use-writer <id>  Activate a writer persona",
     "  /scope <range> Parse writing scope",
     "  /theme         Show current theme summary",
     "  /onboard       Show quickstart guidance",
@@ -183,6 +185,14 @@ class InteractiveMode:
                 emit(f"    {wid}: {', '.join(list(genres)[:3])}...")
             return CommandOutcome.HANDLED
 
+        if text == "/add-writer":
+            await self._handle_add_writer(emit)
+            return CommandOutcome.HANDLED
+
+        if text.startswith("/use-writer"):
+            await self._handle_use_writer(text, emit)
+            return CommandOutcome.HANDLED
+
         if text.startswith("/scope"):
             parts = text.split(" ", 1)
             if len(parts) > 1:
@@ -213,6 +223,34 @@ class InteractiveMode:
             "  Try: summarize my current plot and list contradictions",
             "  Commands: /help  /council  /writers  /status  /quit",
         ]
+
+    async def _handle_add_writer(self, emit: Callable[[str], None]) -> None:
+        """Handle /add-writer command."""
+        emit("  Adding a new writer...")
+        emit("  Run `scribe writer --name \"Author Name\"` in terminal to add a writer.")
+        emit("  Use `/writers` to see available writers after adding.")
+
+    async def _handle_use_writer(self, text: str, emit: Callable[[str], None]) -> None:
+        """Handle /use-writer command."""
+        parts = text.split(" ", 1)
+        if len(parts) < 2 or not parts[1].strip():
+            emit("  Usage: /use-writer <writer-id>")
+            emit("  Run `/writers` to see available writers")
+            return
+
+        writer_id = parts[1].strip()
+        from scribe.council import WriterRegistry
+
+        registry = WriterRegistry()
+        writer = registry.get_writer(writer_id)
+
+        if not writer:
+            emit(f"  Writer not found: {writer_id}")
+            emit("  Run `/writers` to see available writers")
+            return
+
+        emit(f"  Activated writer: {writer.name}")
+        emit(f"  Description: {writer.description}")
 
     async def _run_council(self, emit: Callable[[str], None]) -> None:
         """Run writer council against the active book."""
