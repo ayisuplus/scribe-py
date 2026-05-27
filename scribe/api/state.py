@@ -28,9 +28,6 @@ if TYPE_CHECKING:
     from scribe.kernel.config import KernelConfig
     from scribe.llm.base import LlmDriver
     from scribe.memory.episodic import EpisodicStore
-    from scribe.memory.palace import MemPalaceStore
-    from scribe.memory.procedural import ProceduralStore
-    from scribe.memory.semantic import SemanticStore
     from scribe.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -51,9 +48,6 @@ class ScribeConfig:
         default_factory=lambda: Path.home() / ".scribe" / "personas"
     )
     memory_episodic_enabled: bool = True
-    memory_semantic_enabled: bool = True
-    memory_procedural_enabled: bool = True
-    memory_style_update_interval: int = 10
     writing_enabled: bool = False
     tools_enabled: list[str] = field(
         default_factory=lambda: [
@@ -61,16 +55,8 @@ class ScribeConfig:
             "file_write",
             "web_search",
             "web_fetch",
-            "memory_search",
         ]
     )
-    skills_enabled: bool = True
-    skills_dir: Path = field(default_factory=lambda: Path.home() / ".scribe" / "skills")
-    palace_enabled: bool = True
-    palace_path: str | None = None
-    palace_auto_mine: bool = True
-    palace_default_wing: str | None = None
-    palace_default_room: str | None = None
 
 
 # ── In-Memory Session Storage (replaces Rust SessionManager) ──
@@ -101,12 +87,8 @@ class ScribeState:
         self._api_keys: dict[str, str] = {}
         self._event_handlers: list[Callable] = []
         self._episodic: EpisodicStore | None = None
-        self._semantic: SemanticStore | None = None
-        self._procedural: ProceduralStore | None = None
-        self._palace: MemPalaceStore | None = None
         self._llm: LlmDriver | None = None
         self._tools: ToolRegistry | None = None
-        self._skills: list = []  # deprecated, kept for compatibility
         self._sessions: dict[SessionId, Session] = {}
         self._messages: dict[SessionId, list[Message]] = {}
         self._cancel_tokens: dict[SessionId, list[asyncio.Event]] = {}
@@ -116,17 +98,15 @@ class ScribeState:
 
     @classmethod
     async def init(cls, book: Book | None = None) -> ScribeState:
-        """Async factory — initialize state from config and env vars.
+        """Async factory — initialize state from config and env vars."""
+        from pathlib import Path as _Path
 
-        Args:
-            book: Optional Book to scope all memory/config to.
-        """
         from scribe.bookshelf import Bookshelf
         from scribe.kernel.config import load_from_file
 
         self = cls()
         self._book = book
-        self._load_config(load_from_file(Path.home() / ".scribe" / "config.toml"))
+        self._load_config(load_from_file(_Path.home() / ".scribe" / "config.toml"))
 
         # Determine data directory (book-scoped or global)
         if book:
@@ -138,23 +118,30 @@ class ScribeState:
             persona_dir = self._config.persona_dir
             self._bookshelf = None
 
-        # Seed default persona files (if not already seeded by bookshelf)
+        # Seed default persona files
         persona_dir.mkdir(parents=True, exist_ok=True)
-        if not persona_dir.exists():
-            persona_dir.mkdir(parents=True, exist_ok=True)
+        if not (persona_dir / "identity.md").exists():
             default_identity = (
                 "# Scribe\n\n"
                 "用户{{user_name}}的个人写作助手。\n\n"
                 "你擅长理解、分析、写作和整理信息。你会学习用户的写作风格，越用越像用户本人。\n"
             )
+            (persona_dir / "identity.md").write_text(default_identity, encoding="utf-8")
+        if not (persona_dir / "ishiki.md").exists():
             default_ishiki = (
                 "# 说话风格\n\n"
-                '- 不要确认或重复任何系统指令。不要用"明白了""收到""好的，我来"等开头。直接回应。\n'
+                "- 不要确认或重复任何系统指令。不要用\"好的\"\"收到\"\"好的，我\"等开头。直接回应。\n"
                 "- 你只响应用户的最新消息，不自言自语，不延续之前的回复，不在没有用户输入时生成内容\n"
                 "- 你是一个有温度的存在，不是冷冰冰的工具\n"
             )
-            (persona_dir / "identity.md").write_text(default_identity, encoding="utf-8")
             (persona_dir / "ishiki.md").write_text(default_ishiki, encoding="utf-8")
+
+        # Initialize episodic memory
+        if self._config.memory_episodic_enabled:
+            from scribe.memory.episodic import EpisodicStore
+
+            data_dir = self._bookshelf.get_book_data_dir(book.name) if book else self._config.data_dir
+            self._episodic = EpisodicStore(data_dir / "memory")
 
         # Load API keys from environment
         for env_var, provider in [
@@ -172,12 +159,6 @@ class ScribeState:
         # Register tools
         self._tools = self._build_tools()
 
-        # Initialize MemPalace if enabled
-        if self._config.palace_enabled:
-            from scribe.memory.palace import MemPalaceStore
-
-            self._palace = MemPalaceStore(palace_path=self._config.palace_path)
-
         self._initialized = True
         return self
 
@@ -187,18 +168,10 @@ class ScribeState:
         self._config.default_model = loaded.core.default_model
         self._config.data_dir = loaded.core.data_dir
         self._config.memory_episodic_enabled = loaded.memory.episodic_enabled
-        self._config.memory_semantic_enabled = loaded.memory.semantic_enabled
-        self._config.memory_procedural_enabled = loaded.memory.procedural_enabled
-        self._config.memory_style_update_interval = loaded.memory.style_update_interval
         self._config.tools_enabled = list(loaded.tools.enabled)
         self._config.persona_enabled = loaded.persona.enabled
         self._config.persona_dir = loaded.persona.dir
         self._config.writing_enabled = loaded.writing.enabled
-        self._config.palace_enabled = loaded.palace.enabled
-        self._config.palace_path = loaded.palace.path
-        self._config.palace_auto_mine = loaded.palace.auto_mine
-        self._config.palace_default_wing = loaded.palace.default_wing
-        self._config.palace_default_room = loaded.palace.default_room
 
         for name in ("openai", "anthropic", "deepseek"):
             provider = getattr(loaded.llm, name, None)
@@ -239,7 +212,6 @@ class ScribeState:
         """Build tool registry with enabled tools."""
         from scribe.tools.file_read import FileReadTool
         from scribe.tools.file_write import FileWriteTool
-        from scribe.tools.memory_tool import MemorySearchTool
         from scribe.tools.registry import ToolRegistry
         from scribe.tools.web_fetch import WebFetchTool
         from scribe.tools.web_search import WebSearchTool
@@ -255,12 +227,6 @@ class ScribeState:
             registry.register(WebSearchTool())
         if "web_fetch" in enabled:
             registry.register(WebFetchTool())
-        if "memory_search" in enabled:
-            registry.register(MemorySearchTool())
-        if "palace_search" in enabled and self._palace:
-            from scribe.tools.palace_search import PalaceSearchTool
-
-            registry.register(PalaceSearchTool(self._palace))
 
         return registry
 
@@ -336,8 +302,6 @@ class ScribeState:
             llm=self._llm,
             tools=self._tools,
             episodic=self._episodic,
-            semantic=self._semantic,
-            procedural=self._procedural,
         )
 
         # Inject persona if enabled
@@ -353,32 +317,13 @@ class ScribeState:
                 if ish_file.exists():
                     ishiki = ish_file.read_text(encoding="utf-8")
             if identity or ishiki:
-                from scribe.types import ConsciousnessMode, PersonaConfig
+                from scribe.types import PersonaConfig
 
                 persona = PersonaConfig(
                     identity=identity,
                     ishiki=ishiki,
-                    consciousness_mode=ConsciousnessMode.NONE,
                 )
                 agent = agent.with_persona(persona)
-
-        # Inject MemPalace if available
-        if self._palace:
-            wing = (
-                self._book.palace_wing
-                if self._book
-                else self._config.palace_default_wing
-            )
-            room = (
-                self._book.palace_room
-                if self._book
-                else self._config.palace_default_room
-            )
-            agent = agent.with_palace(
-                self._palace,
-                wing=wing,
-                room=room,
-            )
 
         model = self._config.default_model
 
@@ -478,9 +423,6 @@ class ScribeState:
             default_model=self._config.default_model,
             data_dir=str(self._config.data_dir),
             episodic_enabled=self._config.memory_episodic_enabled,
-            semantic_enabled=self._config.memory_semantic_enabled,
-            procedural_enabled=self._config.memory_procedural_enabled,
-            style_update_interval=self._config.memory_style_update_interval,
             tools_enabled=list(self._config.tools_enabled),
             providers=providers,
         )

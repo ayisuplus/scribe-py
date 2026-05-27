@@ -64,11 +64,9 @@ async def test_send_message_mock_llm():
     with patch.object(state, "_llm", mock_llm):
         with patch.object(state, "_tools", mock_tools):
             with patch.object(state, "_episodic", None):
-                with patch.object(state, "_semantic", None):
-                    with patch.object(state, "_procedural", None):
-                        result = await state.send_message(sid, "Hello!")
-                        assert result == "Hello from mocked LLM!"
-                        print(f"[PASS] send_message -> {result!r}")
+                result = await state.send_message(sid, "Hello!")
+                assert result == "Hello from mocked LLM!"
+                print(f"[PASS] send_message -> {result!r}")
 
 
 async def test_kernel_config_defaults():

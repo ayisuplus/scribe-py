@@ -178,44 +178,4 @@ class TestRunCommandFlow:
         mode_cls.assert_called_once_with(state, "sid", startup_lines=["Quickstart"])
         mode.run.assert_called_once()
 
-    def test_run_with_book_opens_tui_by_default(self):
-        """Opening a book should enter the normal TUI unless --council is passed."""
-        state = MagicMock()
-        book = SimpleNamespace(name="Novel")
-        bookshelf = MagicMock()
-        bookshelf.get_book.return_value = book
-        mode = MagicMock()
 
-        with patch("scribe.cli.main.ensure_config"):
-            with patch("scribe.cli.main.Bookshelf", return_value=bookshelf):
-                with patch("scribe.cli.main.ScribeState.init", new=AsyncMock(return_value=state)):
-                    with patch("scribe.cli.main.resolve_session", new=AsyncMock(return_value="sid")):
-                        with patch("scribe.cli.main.InteractiveMode", return_value=mode) as mode_cls:
-                            with patch("scribe.council.wizard.CouncilWizard") as wizard_cls:
-                                result = CliRunner().invoke(run, ["--book", "Novel"])
-
-        assert result.exit_code == 0
-        bookshelf.select.assert_called_once_with("Novel")
-        mode_cls.assert_called_once_with(state, "sid")
-        mode.run.assert_called_once()
-        wizard_cls.assert_not_called()
-
-    def test_run_with_council_runs_wizard(self):
-        """--council should opt into the writer council wizard."""
-        book = SimpleNamespace(name="Novel")
-        bookshelf = MagicMock()
-        bookshelf.get_book.return_value = book
-        wizard = MagicMock()
-        wizard.run = AsyncMock(return_value="wizard result")
-
-        with patch("scribe.cli.main.ensure_config"):
-            with patch("scribe.cli.main.Bookshelf", return_value=bookshelf):
-                with patch("scribe.llm.create_llm", return_value=MagicMock()):
-                    with patch("scribe.council.wizard.CouncilWizard", return_value=wizard):
-                        with patch("scribe.cli.main.InteractiveMode") as mode_cls:
-                            result = CliRunner().invoke(run, ["--book", "Novel", "--council"])
-
-        assert result.exit_code == 0
-        assert "wizard result" in result.output
-        wizard.run.assert_awaited_once_with(book)
-        mode_cls.assert_not_called()

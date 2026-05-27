@@ -1,14 +1,15 @@
 """
-Scribe: A writing agent framework with multi-layer memory.
+Scribe: A writing agent framework with simplified memory.
 
 This package provides:
-- types: Core type definitions for messages, memory, and configuration
+- types: Core type definitions for messages and configuration
 - kernel: Session management, configuration loading, and event bus
-- memory: Three-layer memory system (episodic, semantic, procedural)
+- memory: Simplified memory system (episodic + persona + methodology)
 """
 
 __version__ = "0.3.1"
 __all__ = [
+    # Core types
     "Role",
     "Message",
     "ToolCall",
@@ -20,44 +21,28 @@ __all__ = [
     "Usage",
     "StreamChunk",
     "MemoryEvent",
-    "Entity",
-    "Relation",
-    "StyleProfile",
-    "Tone",
-    "PunctuationStyle",
-    "EllipsisStyle",
-    "QuoteStyle",
     "ToolResult",
     "SessionInfo",
+    # Persona
     "PersonaConfig",
-    "ConsciousnessMode",
-    "ConsciousnessBlock",
-    "ConsciousnessSection",
+    # Writing Methodology
     "WritingMethodologyConfig",
     "DensityRules",
     "ParagraphRules",
-    "WritingAuditResult",
     "AuditIssue",
-    "HookHealthIssue",
-    "HookEntry",
-    "HookStatus",
-    "HookLedger",
+    # Utils
     "new_session_id",
-    "PalaceHit",
-    "PalaceStatus",
+    # Kernel
     "KernelConfig",
     "SessionManager",
     "EventBus",
+    # Memory
     "EpisodicStore",
-    "SemanticStore",
-    "ProceduralStore",
-    "ContextAssembler",
     "PersonaLoader",
     "WritingMethodology",
-    "HookLedgerManager",
-    "EntityExtractor",
-    "MemPalaceStore",
+    # API
     "ScribeState",
+    # Bookshelf
     "Book",
     "Bookshelf",
 ]
@@ -70,51 +55,28 @@ from scribe.kernel import (
     SessionManager,
 )
 from scribe.memory import (
-    ContextAssembler,
-    EntityExtractor,
     EpisodicStore,
-    HookLedgerManager,
-    MemPalaceStore,
     PersonaLoader,
-    ProceduralStore,
-    SemanticStore,
     WritingMethodology,
 )
 from scribe.types import (
     AuditIssue,
     ChatRequest,
     ChatResponse,
-    ConsciousnessBlock,
-    ConsciousnessMode,
-    ConsciousnessSection,
     DensityRules,
-    EllipsisStyle,
-    Entity,
     FunctionCall,
     FunctionDefinition,
-    HookEntry,
-    HookHealthIssue,
-    HookLedger,
-    HookStatus,
     MemoryEvent,
     Message,
-    PalaceHit,
-    PalaceStatus,
     ParagraphRules,
     PersonaConfig,
-    PunctuationStyle,
-    QuoteStyle,
-    Relation,
     Role,
     SessionInfo,
     StreamChunk,
-    StyleProfile,
-    Tone,
     ToolCall,
     ToolDefinition,
     ToolResult,
     Usage,
-    WritingAuditResult,
     WritingMethodologyConfig,
     new_session_id,
 )

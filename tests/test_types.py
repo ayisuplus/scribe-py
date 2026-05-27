@@ -9,15 +9,8 @@ from scribe.types import (
     Message,
     ToolCall,
     FunctionCall,
-    StyleProfile,
-    Tone,
-    PunctuationStyle,
     SessionInfo,
     PersonaConfig,
-    ConsciousnessMode,
-    HookEntry,
-    HookStatus,
-    HookLedger,
     new_session_id,
 )
 
@@ -79,29 +72,6 @@ class TestMessageSerialization:
         assert restored.tool_calls[0].function.name == "get_weather"
 
 
-class TestStyleProfile:
-    """Test StyleProfile defaults."""
-
-    def test_style_profile_default(self):
-        """Test StyleProfile default values match Rust defaults."""
-        profile = StyleProfile()
-        
-        assert profile.tone == Tone.CASUAL
-        assert profile.avg_sentence_length == 20.0
-        assert profile.paragraph_density == 3.0
-        assert profile.preferred_structures == []
-        assert profile.vocabulary_patterns == []
-        assert profile.transition_words == []
-
-    def test_style_profile_punctuation_defaults(self):
-        """Test PunctuationStyle defaults."""
-        style = PunctuationStyle()
-        
-        assert style.use_oxford_comma is False
-        assert style.ellipsis_style.value == "threedots"
-        assert style.quote_style.value == "double"
-
-
 class TestSessionInfo:
     """Test SessionInfo serialization."""
 
@@ -122,41 +92,6 @@ class TestSessionInfo:
         assert restored.id == info.id
         assert restored.title == info.title
         assert restored.message_count == info.message_count
-
-
-class TestHookLedger:
-    """Test HookLedger serialization."""
-
-    def test_hook_ledger_default(self):
-        """Test default HookLedger is empty."""
-        ledger = HookLedger()
-        assert ledger.hooks == []
-
-    def test_hook_ledger_roundtrip(self):
-        """Test HookLedger serialization round-trip."""
-        ledger = HookLedger(hooks=[
-            HookEntry(
-                id="H001",
-                description="神秘信件",
-                seed_chapter=1,
-                status=HookStatus.PLANTED,
-            ),
-            HookEntry(
-                id="H002",
-                description="失踪的戒指",
-                seed_chapter=2,
-                status=HookStatus.PRESSURED,
-                last_mention_chapter=5,
-            ),
-        ])
-        
-        data = ledger.to_dict()
-        restored = HookLedger.from_dict(data)
-        
-        assert len(restored.hooks) == 2
-        assert restored.hooks[0].id == "H001"
-        assert restored.hooks[0].status == HookStatus.PLANTED
-        assert restored.hooks[1].status == HookStatus.PRESSURED
 
 
 class TestNewSessionId:
@@ -184,18 +119,13 @@ class TestNewSessionId:
 class TestPersonaConfig:
     """Test PersonaConfig structure."""
 
-    def test_persona_config_defaults(self):
-        """Test PersonaConfig default values."""
+    def test_persona_config_basic(self):
+        """Test PersonaConfig basic structure."""
         config = PersonaConfig(
             identity="I am a test persona.",
             ishiki="I speak in test mode.",
         )
         
-        assert config.yuan is None
-        assert config.consciousness_mode == ConsciousnessMode.NONE
-
-    def test_consciousness_mode_values(self):
-        """Test all ConsciousnessMode values."""
-        assert ConsciousnessMode.NONE.value == "none"
-        assert ConsciousnessMode.MOOD.value == "mood"
-        assert ConsciousnessMode.REFLECT.value == "reflect"
+        assert config.identity == "I am a test persona."
+        assert config.ishiki == "I speak in test mode."
+        assert config.name is None

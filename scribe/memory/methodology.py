@@ -142,7 +142,6 @@ class WritingMethodology:
         return WritingAuditResult(
             score=score,
             issues=issues,
-            hook_health=[],
         )
 
     @staticmethod

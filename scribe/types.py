@@ -257,74 +257,6 @@ class MemoryEvent:
         )
 
 
-@dataclass
-class Entity:
-    """A named entity in the semantic store."""
-
-    id: int
-    name: str
-    entity_type: str
-    properties: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class Relation:
-    """A relation between two entities."""
-
-    id: int
-    subject_id: int
-    predicate: str
-    object_id: int
-
-
-# ── Style Types ──
-
-
-class Tone(str, Enum):
-    """Writing tone enumeration."""
-
-    FORMAL = "formal"
-    CASUAL = "casual"
-    ACADEMIC = "academic"
-
-
-class EllipsisStyle(str, Enum):
-    """Ellipsis style enumeration."""
-
-    THREE_DOTS = "threedots"
-    UNICODE_ELLIPSIS = "unicodeellipsis"
-
-
-class QuoteStyle(str, Enum):
-    """Quote style enumeration."""
-
-    DOUBLE = "double"
-    SINGLE = "single"
-    CHINESE = "chinese"
-
-
-@dataclass
-class PunctuationStyle:
-    """Punctuation style preferences."""
-
-    use_oxford_comma: bool = False
-    ellipsis_style: EllipsisStyle = EllipsisStyle.THREE_DOTS
-    quote_style: QuoteStyle = QuoteStyle.DOUBLE
-
-
-@dataclass
-class StyleProfile:
-    """A user's writing style profile."""
-
-    tone: Tone = Tone.CASUAL
-    avg_sentence_length: float = 20.0
-    preferred_structures: list[str] = field(default_factory=list)
-    vocabulary_patterns: list[str] = field(default_factory=list)
-    punctuation_style: PunctuationStyle = field(default_factory=PunctuationStyle)
-    paragraph_density: float = 3.0
-    transition_words: list[str] = field(default_factory=list)
-
-
 # ── Tool Types ──
 
 
@@ -376,14 +308,6 @@ class SessionInfo:
 # ── Persona Types ──
 
 
-class ConsciousnessMode(str, Enum):
-    """Consciousness mode for persona."""
-
-    NONE = "none"
-    MOOD = "mood"
-    REFLECT = "reflect"
-
-
 @dataclass
 class PersonaConfig:
     """Persona configuration loaded from markdown files."""
@@ -391,24 +315,6 @@ class PersonaConfig:
     identity: str
     ishiki: str
     name: str | None = None
-    yuan: str | None = None
-    consciousness_mode: ConsciousnessMode = ConsciousnessMode.NONE
-
-
-@dataclass
-class ConsciousnessBlock:
-    """A block of consciousness sections."""
-
-    mode: ConsciousnessMode
-    sections: list[ConsciousnessSection]
-
-
-@dataclass
-class ConsciousnessSection:
-    """A named section with consciousness items."""
-
-    name: str
-    items: list[str]
 
 
 # ── Writing Methodology Types ──
@@ -456,106 +362,11 @@ class AuditIssue:
 
 
 @dataclass
-class HookHealthIssue:
-    """A health issue with a hook."""
-
-    hook_id: str
-    issue: str
-
-
-@dataclass
 class WritingAuditResult:
     """Result of a writing audit."""
 
     score: float
     issues: list[AuditIssue]
-    hook_health: list[HookHealthIssue] = field(default_factory=list)
-
-
-# ── MemPalace Types ──
-
-
-@dataclass
-class PalaceHit:
-    """A single search result from MemPalace."""
-
-    text: str
-    wing: str
-    room: str
-    source_file: str
-    similarity: float
-
-
-@dataclass
-class PalaceStatus:
-    """Palace overview."""
-
-    wings: dict[str, list[str]]  # wing_name -> [room_names]
-    total_drawers: int
-
-
-# ── Hook Ledger Types ──
-
-
-class HookStatus(str, Enum):
-    """Hook status enumeration."""
-
-    PLANTED = "planted"
-    PRESSURED = "pressured"
-    RESOLVED = "resolved"
-    DEFERRED = "deferred"
-
-
-@dataclass
-class HookEntry:
-    """A foreshadowing hook entry."""
-
-    id: str
-    description: str
-    seed_chapter: int
-    status: HookStatus
-    last_mention_chapter: int | None = None
-    payoff_text: str | None = None
-
-
-@dataclass
-class HookLedger:
-    """A ledger of all foreshadowing hooks."""
-
-    hooks: list[HookEntry] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        """Serialize to dictionary."""
-        return {
-            "hooks": [
-                {
-                    "id": h.id,
-                    "description": h.description,
-                    "seed_chapter": h.seed_chapter,
-                    "status": h.status.value,
-                    "last_mention_chapter": h.last_mention_chapter,
-                    "payoff_text": h.payoff_text,
-                }
-                for h in self.hooks
-            ]
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> HookLedger:
-        """Deserialize from dictionary."""
-        hooks = []
-        for h_data in data.get("hooks", []):
-            hooks.append(
-                HookEntry(
-                    id=h_data["id"],
-                    description=h_data["description"],
-                    seed_chapter=h_data["seed_chapter"],
-                    status=HookStatus(h_data["status"]),
-                    last_mention_chapter=h_data.get("last_mention_chapter"),
-                    payoff_text=h_data.get("payoff_text"),
-                )
-            )
-        return cls(hooks=hooks)
 
 
 # ── API Config Types ──
@@ -590,9 +401,6 @@ class ConfigView:
     default_model: str = "gpt-4o"
     data_dir: str = ""
     episodic_enabled: bool = True
-    semantic_enabled: bool = True
-    procedural_enabled: bool = True
-    style_update_interval: int = 10
     tools_enabled: list[str] = field(default_factory=list)
     providers: list[ProviderView] = field(default_factory=list)
 
@@ -612,15 +420,6 @@ def _test_message_serialization():
     print("✓ test_message_serialization passed")
 
 
-def _test_style_profile_default():
-    """Test StyleProfile default values."""
-    profile = StyleProfile()
-    assert profile.tone == Tone.CASUAL
-    assert profile.avg_sentence_length > 0.0
-    print("✓ test_style_profile_default passed")
-
-
 if __name__ == "__main__":
     _test_message_serialization()
-    _test_style_profile_default()
     print("All tests passed!")

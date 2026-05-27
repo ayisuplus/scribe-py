@@ -29,16 +29,13 @@ from scribe.types import (
 if TYPE_CHECKING:
     from scribe.llm.base import LlmDriver
     from scribe.memory.episodic import EpisodicStore
-    from scribe.memory.hook_ledger import HookLedgerManager
-    from scribe.memory.palace import MemPalaceStore
-    from scribe.memory.procedural import ProceduralStore
-    from scribe.memory.semantic import SemanticStore
     from scribe.tools.base import ToolContext
     from scribe.tools.registry import ToolRegistry
 
 from scribe.agent.loop_guard import LoopGuard
 from scribe.agent.retry import Result, RetryConfig, RetryError, RetryManager
 from scribe.agent.token_counter import count_tokens, truncate_messages
+from scribe.memory.methodology import WritingMethodology
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +58,7 @@ class AgentLoop:
     Main agent loop — assembles context, calls LLM, executes tools, manages memory.
 
     Usage:
-        agent = AgentLoop(llm, tools, episodic, semantic, procedural)
+        agent = AgentLoop(llm, tools, episodic)
         result = await agent.run(session_id, conversation, model="gpt-4o")
     """
 
@@ -70,23 +67,15 @@ class AgentLoop:
         llm: LlmDriver,
         tools: ToolRegistry,
         episodic: EpisodicStore | None = None,
-        semantic: SemanticStore | None = None,
-        procedural: ProceduralStore | None = None,
     ):
         self._llm = llm
         self._tools = tools
         self._episodic = episodic
-        self._semantic = semantic
-        self._procedural = procedural
         self._persona: PersonaConfig | None = None
         self._writing_config: WritingMethodologyConfig | None = None
-        self._hook_ledger: HookLedgerManager | None = None
         self._user_name: str = "User"
         self._retry_config = RetryConfig()
         self._agent_config = AgentConfig()
-        self._palace: MemPalaceStore | None = None
-        self._palace_wing: str | None = None
-        self._palace_room: str | None = None
 
     # ── Builder ──
 
@@ -96,10 +85,6 @@ class AgentLoop:
 
     def with_writing_config(self, config: WritingMethodologyConfig) -> AgentLoop:
         self._writing_config = config
-        return self
-
-    def with_hook_ledger(self, ledger: Any) -> AgentLoop:
-        self._hook_ledger = ledger
         return self
 
     def with_user_name(self, name: str) -> AgentLoop:
@@ -112,17 +97,6 @@ class AgentLoop:
 
     def with_agent_config(self, config: AgentConfig) -> AgentLoop:
         self._agent_config = config
-        return self
-
-    def with_palace(
-        self,
-        palace: MemPalaceStore,
-        wing: str | None = None,
-        room: str | None = None,
-    ) -> AgentLoop:
-        self._palace = palace
-        self._palace_wing = wing
-        self._palace_room = room
         return self
 
     # ── Public Run ──
@@ -296,17 +270,6 @@ class AgentLoop:
                 # No tool calls — return the response
                 content = response.content or ""
                 await self._record_assistant_event(session_id, content)
-                # Auto-mine to MemPalace if enabled
-                if self._palace and self._palace_wing and len(content) > 100:
-                    try:
-                        await self._palace.mine(
-                            content=content,
-                            wing=self._palace_wing,
-                            room=self._palace_room or "untitled",
-                            title=f"session_{session_id}",
-                        )
-                    except Exception as e:
-                        logger.warning("Palace auto-mine failed: %s", e)
                 return content
 
             # Append assistant message with tool calls
@@ -444,21 +407,20 @@ class AgentLoop:
             logger.warning("Failed to record assistant event: %s", e)
 
     async def _assemble_system_prompt(self) -> str:
-        """Assemble system prompt from persona, writing config, skills, etc."""
+        """Assemble system prompt from persona and writing config."""
         parts: list[str] = []
 
+        # 1. 人格（身份 + 说话风格）
         if self._persona:
             parts.append(self._persona.identity)
             if self._persona.ishiki:
                 parts.append(self._persona.ishiki)
 
+        # 2. 写作方法论（全局约束）
         if self._writing_config and self._writing_config.enabled:
-            parts.append(f"[Writing mode: {self._writing_config.genre}]")
+            parts.append(WritingMethodology.build_prompt(self._writing_config))
 
-        if not parts:
-            parts.append("You are a helpful assistant.")
-
-        return "\n\n".join(parts)
+        return "\n\n".join(parts) if parts else "You are a helpful assistant."
 
     def _filter_critical_issues(
         self, text: str, config: WritingMethodologyConfig

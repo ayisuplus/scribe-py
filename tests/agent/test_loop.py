@@ -80,8 +80,6 @@ class TestAgentLoopBasic:
             llm=llm,
             tools=registry,
             episodic=None,
-            semantic=None,
-            procedural=None,
         )
 
         result = await agent.run(
